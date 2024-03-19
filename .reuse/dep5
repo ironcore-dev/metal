@@ -26,9 +26,11 @@ Disclaimer: The code in this project may include calls to APIs ("API Calls") of
 
 Files:
   .github/*
+  api/*
   cmd/*
   config/*
   hack/*
+  internal/*
   test/*
   .dockerignore
   .gitignore

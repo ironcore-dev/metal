@@ -1,0 +1,22 @@
+resources:
+- bases/metal.ironcore.dev_machines.yaml
+- bases/metal.ironcore.dev_machineclaims.yaml
+- bases/metal.ironcore.dev_oobs.yaml
+- bases/metal.ironcore.dev_oobsecrets.yaml
+#+kubebuilder:scaffold:crdkustomizeresource
+
+patches:
+#- path: patches/webhook_in_machines.yaml
+#- path: patches/webhook_in_machineclaims.yaml
+#- path: patches/webhook_in_oobs.yaml
+#- path: patches/webhook_in_oobsecrets.yaml
+#+kubebuilder:scaffold:crdkustomizewebhookpatch
+
+#- path: patches/cainjection_in_machines.yaml
+#- path: patches/cainjection_in_machineclaims.yaml
+#- path: patches/cainjection_in_oobs.yaml
+#- path: patches/cainjection_in_oobsecrets.yaml
+#+kubebuilder:scaffold:crdkustomizecainjectionpatch
+
+#configurations:
+#- kustomizeconfig.yaml

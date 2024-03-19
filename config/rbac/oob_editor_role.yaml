@@ -1,0 +1,30 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: oob-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: metal
+    app.kubernetes.io/part-of: metal
+    app.kubernetes.io/managed-by: kustomize
+  name: oob-editor-role
+rules:
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - oobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - oobs/status
+  verbs:
+  - get

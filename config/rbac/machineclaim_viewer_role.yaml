@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: machineclaim-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: metal
+    app.kubernetes.io/part-of: metal
+    app.kubernetes.io/managed-by: kustomize
+  name: machineclaim-viewer-role
+rules:
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - machineclaims
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - machineclaims/status
+  verbs:
+  - get
