@@ -71,7 +71,6 @@ var _ = BeforeSuite(func() {
 
 	Expect((&MachineClaimReconciler{
 		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)).To(Succeed())
 
 	ctx, cancel := context.WithCancel(context.Background())

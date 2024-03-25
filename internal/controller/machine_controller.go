@@ -6,7 +6,6 @@ package controller
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -14,15 +13,18 @@ import (
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 )
 
-// MachineReconciler reconciles a Machine object
-type MachineReconciler struct {
-	client.Client
-	Scheme *runtime.Scheme
-}
-
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
+
+func NewMachineReconciler() *MachineReconciler {
+	return &MachineReconciler{}
+}
+
+// MachineReconciler reconciles a Machine object
+type MachineReconciler struct {
+	client.Client
+}
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
