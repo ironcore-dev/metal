@@ -17,19 +17,22 @@ limitations under the License.
 package controller
 
 import (
-	"fmt"
+	"context"
 	"path/filepath"
-	"runtime"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	. "sigs.k8s.io/controller-runtime/pkg/envtest/komega"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
@@ -40,6 +43,10 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 
 func TestControllers(t *testing.T) {
+	SetDefaultEventuallyPollingInterval(10 * time.Millisecond)
+	SetDefaultEventuallyTimeout(1 * time.Second)
+	SetDefaultConsistentlyPollingInterval(10 * time.Millisecond)
+	SetDefaultConsistentlyDuration(100 * time.Millisecond)
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "Controller Suite")
@@ -50,30 +57,42 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
-
-		BinaryAssetsDirectory: filepath.Join("..", "..", "bin", "k8s",
-			fmt.Sprintf("1.29.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 	}
 
 	var err error
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
+	DeferCleanup(testEnv.Stop)
 
-	err = metalv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	Expect(metalv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+	SetClient(k8sClient)
 
-})
-
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
+	var mgr manager.Manager
+	mgr, err = ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme.Scheme,
+	})
 	Expect(err).NotTo(HaveOccurred())
+	Expect(mgr).NotTo(BeNil())
+
+	Expect((&MachineClaimReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr)).To(Succeed())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	DeferCleanup(cancel)
+
+	go func() {
+		defer GinkgoRecover()
+
+		Expect(mgr.Start(ctx)).To(Succeed())
+	}()
 })

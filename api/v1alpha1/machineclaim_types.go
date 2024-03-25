@@ -22,9 +22,10 @@ import (
 )
 
 // MachineClaimSpec defines the desired state of MachineClaim
+// TODO: Validate that exactly one of MachineRef or MachineSelector is set.
 type MachineClaimSpec struct {
 	//+optional
-	MachineRef *v1.LocalObjectReference `json:"machineRef,omitempty"` //todo validation
+	MachineRef *v1.LocalObjectReference `json:"machineRef,omitempty"`
 
 	//+optional
 	MachineSelector *metav1.LabelSelector `json:"machineSelector,omitempty"`
@@ -56,7 +57,7 @@ type MachineClaimPhase string
 
 const (
 	MachineClaimPhaseBound   MachineClaimPhase = "Bound"
-	MachineClaimPhaseUnBound MachineClaimPhase = "Unbound"
+	MachineClaimPhaseUnbound MachineClaimPhase = "Unbound"
 )
 
 //+kubebuilder:object:root=true

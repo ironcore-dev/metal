@@ -23,7 +23,7 @@ import (
 
 const (
 	OOBOperationKeyName    string = "oob.metal.ironcore.dev/operation"
-	OOBOperationReset      string = "Reset" //TODO: check proper names here
+	OOBOperationReset      string = "Reset" // TODO: check proper names here
 	OOBOperationForceReset string = "ForceReset"
 )
 

@@ -256,7 +256,11 @@ func (in *MachineNetworkInterface) DeepCopy() *MachineNetworkInterface {
 func (in *MachineSpec) DeepCopyInto(out *MachineSpec) {
 	*out = *in
 	out.OOBRef = in.OOBRef
-	out.InventoryRef = in.InventoryRef
+	if in.InventoryRef != nil {
+		in, out := &in.InventoryRef, &out.InventoryRef
+		*out = new(v1.LocalObjectReference)
+		**out = **in
+	}
 	if in.MachineClaimRef != nil {
 		in, out := &in.MachineClaimRef, &out.MachineClaimRef
 		*out = new(v1.ObjectReference)

@@ -30,11 +30,12 @@ const (
 
 // MachineSpec defines the desired state of Machine
 type MachineSpec struct {
-	UUID string `json:"uuid"` //todo valiation
+	//+kubebuilder:validation:Pattern=`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`
+	UUID string `json:"uuid"`
 
 	OOBRef v1.LocalObjectReference `json:"oobRef"`
 
-	InventoryRef v1.LocalObjectReference `json:"inventoryRef"`
+	InventoryRef *v1.LocalObjectReference `json:"inventoryRef,omitempty"`
 
 	//+optional
 	MachineClaimRef *v1.ObjectReference `json:"machineClaimRef,omitempty"`

@@ -55,7 +55,7 @@ var _ = Describe("controller", Ordered, func() {
 	})
 
 	Context("Operator", func() {
-		It("should run successfully", func() {
+		It("should run", func() {
 			var controllerPodName string
 			var err error
 

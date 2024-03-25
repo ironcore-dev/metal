@@ -42,8 +42,6 @@ type MachineReconciler struct {
 func (r *MachineReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
-
 	return ctrl.Result{}, nil
 }
 

@@ -44,7 +44,9 @@ spec:
           metadata:
             type: object
           spec:
-            description: MachineClaimSpec defines the desired state of MachineClaim
+            description: |-
+              MachineClaimSpec defines the desired state of MachineClaim
+              TODO: Validate that exactly one of MachineRef or MachineSelector is set.
             properties:
               ignitionSecretRef:
                 description: |-
