@@ -4,8 +4,8 @@
 *.dll
 *.so
 *.dylib
-bin/*
 Dockerfile.cross
+metal
 
 # Test binary, built with `go test -c`
 *.test

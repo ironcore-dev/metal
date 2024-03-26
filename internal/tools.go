@@ -1,15 +1,15 @@
 // SPDX-FileCopyrightText: 2024 SAP SE or an SAP affiliate company and IronCore contributors
 // SPDX-License-Identifier: Apache-2.0
 
-// Package tools
-
 //go:build tools
 // +build tools
 
-package tools
+package main
 
 import (
-	// Use addlicense for adding license headers.
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/google/addlicense"
 	_ "sigs.k8s.io/controller-runtime/tools/setup-envtest"
+	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
+	_ "sigs.k8s.io/kustomize/kustomize/v5"
 )
