@@ -184,30 +184,42 @@ func main() {
 		return
 	}
 
-	err = controller.NewMachineReconciler().SetupWithManager(mgr)
-	if err != nil {
-		log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Machine")
-		exitCode = 1
-		return
+	if p.enableMachineController {
+		err = controller.NewMachineReconciler().SetupWithManager(mgr)
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Machine")
+			exitCode = 1
+			return
+		}
 	}
-	err = controller.NewMachineClaimReconciler().SetupWithManager(mgr)
-	if err != nil {
-		log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "MachineClaim")
-		exitCode = 1
-		return
+
+	if p.enableMachineClaimController {
+		err = controller.NewMachineClaimReconciler().SetupWithManager(mgr)
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "MachineClaim")
+			exitCode = 1
+			return
+		}
 	}
-	err = controller.NewOOBReconciler().SetupWithManager(mgr)
-	if err != nil {
-		log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
-		exitCode = 1
-		return
+
+	if p.enableOOBController {
+		err = controller.NewOOBReconciler().SetupWithManager(mgr)
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
+			exitCode = 1
+			return
+		}
 	}
-	err = controller.NewOOBSecretReconciler().SetupWithManager(mgr)
-	if err != nil {
-		log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOBSecret")
-		exitCode = 1
-		return
+
+	if p.enableOOBSecretController {
+		err = controller.NewOOBSecretReconciler().SetupWithManager(mgr)
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOBSecret")
+			exitCode = 1
+			return
+		}
 	}
+
 	//+kubebuilder:scaffold:builder
 
 	err = mgr.AddHealthzCheck("health", healthz.Ping)
