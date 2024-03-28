@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ironcore-dev/metal/internal/log"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -18,10 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
-)
-
-const (
-	MachineClaimFinalizer string = "metal.ironcore.dev/machineclaim"
+	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
+	"github.com/ironcore-dev/metal/internal"
+	"github.com/ironcore-dev/metal/internal/log"
+	"github.com/ironcore-dev/metal/internal/patch"
 )
 
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machineclaims,verbs=get;list;watch;create;update;patch;delete
@@ -30,6 +29,11 @@ const (
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
+
+const (
+	MachineClaimFieldOwner string = "metal.ironcore.dev/machineclaim"
+	MachineClaimFinalizer  string = "metal.ironcore.dev/machineclaim"
+)
 
 func NewMachineClaimReconciler() *MachineClaimReconciler {
 	return &MachineClaimReconciler{}
@@ -42,7 +46,6 @@ type MachineClaimReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO Server-side apply
 func (r *MachineClaimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	claim := &metalv1alpha1.MachineClaim{}
 	err := r.Get(ctx, req.NamespacedName, claim)
@@ -78,29 +81,24 @@ func (r *MachineClaimReconciler) finalize(ctx context.Context, claim *metalv1alp
 			}
 			return fmt.Errorf("cannot get Machine: %w", err)
 		}
-
 		if machine.Spec.MachineClaimRef == nil {
 			break
 		}
-
 		if machine.Spec.MachineClaimRef.UID != claim.UID {
 			return fmt.Errorf("MachineClaimRef in Machine does not match MachineClaim UID")
 		}
 
-		log.Debug(ctx, "Removing finalizer from Machine")
-		base := machine.DeepCopy()
-		machine.Spec.MachineClaimRef = nil
-		_ = controllerutil.RemoveFinalizer(machine, MachineClaimFinalizer)
-		err = r.Patch(ctx, machine, client.MergeFrom(base))
+		log.Debug(ctx, "Updating Machine")
+		machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace).WithFinalizers().WithSpec(metalv1alpha1apply.MachineSpec())
+		err = r.Patch(ctx, machine, patch.Apply(machineApply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 		if err != nil {
 			return fmt.Errorf("cannot patch Machine: %w", err)
 		}
 	}
 
 	log.Debug(ctx, "Removing finalizer")
-	base := claim.DeepCopy()
-	controllerutil.RemoveFinalizer(claim, MachineClaimFinalizer)
-	err := r.Patch(ctx, claim, client.MergeFrom(base))
+	apply := metalv1alpha1apply.MachineClaim(claim.Name, claim.Namespace).WithFinalizers()
+	err := r.Patch(ctx, claim, patch.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 	if err != nil {
 		return fmt.Errorf("cannot remove finalizer: %w", err)
 	}
@@ -112,34 +110,21 @@ func (r *MachineClaimReconciler) finalize(ctx context.Context, claim *metalv1alp
 func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1alpha1.MachineClaim) (ctrl.Result, error) {
 	log.Debug(ctx, "Reconciling")
 
-	if !controllerutil.ContainsFinalizer(claim, MachineClaimFinalizer) {
-		log.Debug(ctx, "Adding finalizer")
-		base := claim.DeepCopy()
-		controllerutil.AddFinalizer(claim, MachineClaimFinalizer)
-		err := r.Patch(ctx, claim, client.MergeFrom(base))
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("cannot add finalizer: %w", err)
-		}
-
-		log.Debug(ctx, "Finalizer added, reconciled successfully")
-		return ctrl.Result{}, nil
-	}
-
-	if claim.Status.Phase == "" {
-		log.Debug(ctx, "Updating status")
-		base := claim.DeepCopy()
-		claim.Status.Phase = metalv1alpha1.MachineClaimPhaseUnbound
-		err := r.Status().Patch(ctx, claim, client.MergeFrom(base))
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("cannot patch MachineClaim status: %w", err)
-		}
-
-		log.Debug(ctx, "Status set, reconciled successfully")
-		return ctrl.Result{}, nil
-	}
+	applySpec := metalv1alpha1apply.MachineClaimSpec()
+	applyStatus := metalv1alpha1apply.MachineClaimStatus().WithPhase(metalv1alpha1.MachineClaimPhaseUnbound)
 
 	var machines []metalv1alpha1.Machine
-	if claim.Spec.MachineRef == nil {
+	if claim.Spec.MachineRef != nil {
+		log.Debug(ctx, "Getting referenced Machine")
+		machine := &metalv1alpha1.Machine{}
+		err := r.Get(ctx, client.ObjectKey{Name: claim.Spec.MachineRef.Name}, machine)
+		if err != nil && !errors.IsNotFound(err) {
+			return ctrl.Result{}, fmt.Errorf("cannot get Machine from MachineClaim ref: %w", err)
+		}
+		if !errors.IsNotFound(err) {
+			machines = append(machines, *machine)
+		}
+	} else if claim.Spec.MachineSelector != nil {
 		log.Debug(ctx, "Listing Machines with matching labels")
 		machineList := &metalv1alpha1.MachineList{}
 		err := r.List(ctx, machineList, client.MatchingLabels(claim.Spec.MachineSelector.MatchLabels))
@@ -147,17 +132,8 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 			return ctrl.Result{}, fmt.Errorf("cannot list Machines from MachineClaim selector: %w", err)
 		}
 		machines = machineList.Items
-	} else {
-		log.Debug(ctx, "Getting referenced Machine")
-		machine := &metalv1alpha1.Machine{}
-		err := r.Get(ctx, client.ObjectKey{Name: claim.Spec.MachineRef.Name}, machine)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("cannot get Machine from MachineClaim ref: %w", err)
-		}
-		machines = append(machines, *machine)
 	}
 
-	var machine *metalv1alpha1.Machine
 	for _, m := range machines {
 		if m.Status.State != metalv1alpha1.MachineStateReady {
 			continue
@@ -165,62 +141,49 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 		if m.Spec.MachineClaimRef != nil && m.Spec.MachineClaimRef.UID != claim.UID {
 			continue
 		}
-		chosen := m
-		machine = &chosen
+
+		machine := &m
+		ctx = log.WithValues(ctx, "machine", machine.Name)
+
+		machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace).WithFinalizers(MachineClaimFinalizer).
+			WithSpec(metalv1alpha1apply.MachineSpec().WithMachineClaimRef(v1.ObjectReference{
+				Namespace: claim.Namespace,
+				Name:      claim.Name,
+				UID:       claim.UID,
+			}).WithPower(claim.Spec.Power))
+		if !controllerutil.ContainsFinalizer(machine, MachineClaimFinalizer) ||
+			!internal.NilOrEqual(machine.Spec.MachineClaimRef, machineApply.Spec.MachineClaimRef) ||
+			machine.Spec.Power != *machineApply.Spec.Power {
+			log.Debug(ctx, "Updating Machine")
+			err := r.Patch(ctx, machine, patch.Apply(machineApply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
+			if err != nil {
+				return ctrl.Result{}, fmt.Errorf("cannot patch Machine: %w", err)
+			}
+		}
+
+		applySpec = applySpec.WithMachineRef(v1.LocalObjectReference{Name: machine.Name})
+		applyStatus = applyStatus.WithPhase(metalv1alpha1.MachineClaimPhaseBound)
+
 		break
 	}
-	if machine == nil {
-		log.Debug(ctx, "No suitable Machines, reconciled successfully")
-		return ctrl.Result{}, nil
-	}
-	ctx = log.WithValues(ctx, "machine", machine.Name)
 
-	machineBase := machine.DeepCopy()
-	modified := controllerutil.AddFinalizer(machine, MachineClaimFinalizer)
-	if machine.Spec.MachineClaimRef == nil {
-		machine.Spec.MachineClaimRef = &v1.ObjectReference{
-			Namespace: claim.Namespace,
-			Name:      claim.Name,
-			UID:       claim.UID,
-		}
-		modified = true
-	}
-	if machine.Spec.Power != claim.Spec.Power {
-		machine.Spec.Power = claim.Spec.Power
-		modified = true
-	}
-	if modified {
-		log.Debug(ctx, "Updating Machine")
-		err := r.Patch(ctx, machine, client.MergeFrom(machineBase))
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("cannot patch MachineClaim: %w", err)
-		}
-	}
-
-	if claim.Spec.MachineRef == nil || claim.Spec.MachineRef.Name != machine.Name {
+	apply := metalv1alpha1apply.MachineClaim(claim.Name, claim.Namespace).WithFinalizers(MachineClaimFinalizer).WithSpec(applySpec)
+	if !controllerutil.ContainsFinalizer(claim, MachineClaimFinalizer) ||
+		!internal.NilOrEqual(claim.Spec.MachineRef, apply.Spec.MachineRef) {
 		log.Debug(ctx, "Updating")
-		base := claim.DeepCopy()
-		claim.Spec.MachineRef = &v1.LocalObjectReference{Name: machine.Name}
-		err := r.Patch(ctx, claim, client.MergeFrom(base))
+		err := r.Patch(ctx, claim, patch.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("cannot patch MachineClaim: %w", err)
 		}
-
-		log.Debug(ctx, "Reconciled successfully")
-		return ctrl.Result{}, nil
 	}
 
-	if claim.Status.Phase != metalv1alpha1.MachineClaimPhaseBound {
+	apply = metalv1alpha1apply.MachineClaim(claim.Name, claim.Namespace).WithStatus(applyStatus)
+	if claim.Status.Phase != *apply.Status.Phase {
 		log.Debug(ctx, "Updating status")
-		base := claim.DeepCopy()
-		claim.Status.Phase = metalv1alpha1.MachineClaimPhaseBound
-		err := r.Status().Patch(ctx, claim, client.MergeFrom(base))
+		err := r.Status().Patch(ctx, claim, patch.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("cannot patch MachineClaim status: %w", err)
 		}
-
-		log.Debug(ctx, "Reconciled successfully")
-		return ctrl.Result{}, nil
 	}
 
 	log.Debug(ctx, "Reconciled successfully")
@@ -229,14 +192,14 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MachineClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// TODO: Make an index for claim.spec.machineref
+	// TODO: Make an index for claim.spec.machineref.
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.MachineClaim{}).
-		Watches(&metalv1alpha1.Machine{}, r.enqueueMachineClaimsByRef()).
+		Watches(&metalv1alpha1.Machine{}, r.enqueueMachineClaimsFromMachine()).
 		Complete(r)
 }
 
-func (r *MachineClaimReconciler) enqueueMachineClaimsByRef() handler.EventHandler {
+func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine() handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 		machine := obj.(*metalv1alpha1.Machine)
 
@@ -249,6 +212,10 @@ func (r *MachineClaimReconciler) enqueueMachineClaimsByRef() handler.EventHandle
 
 		var req []reconcile.Request
 		for _, c := range claimList.Items {
+			if c.DeletionTimestamp != nil {
+				continue
+			}
+
 			// TODO: Also watch for machines matching the label selector.
 			ref := c.Spec.MachineRef
 			if ref != nil && ref.Name == machine.Name {

@@ -25,7 +25,7 @@ type MachineClaimSpec struct {
 	IgnitionSecretRef *v1.LocalObjectReference `json:"ignitionSecretRef,omitempty"`
 
 	//+optional
-	NetworkInterfaces []MachineClaimNetworkInterface `json:"networkInterfaces,omitempty"` // todo is it optional?
+	NetworkInterfaces []MachineClaimNetworkInterface `json:"networkInterfaces,omitempty"` // TODO: Revisit whether this is really optional.
 }
 
 type MachineClaimNetworkInterface struct {
