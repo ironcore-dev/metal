@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	OOBOperationKeyName    string = "oob.metal.ironcore.dev/operation"
-	OOBOperationReset      string = "Reset" // TODO: check proper names here
-	OOBOperationForceReset string = "ForceReset"
+	OOBOperationKeyName string = "oob.metal.ironcore.dev/operation"
+	OOBOperationRestart string = "Restart"
 )
 
 // OOBSpec defines the desired state of OOB

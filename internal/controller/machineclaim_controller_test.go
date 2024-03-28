@@ -28,8 +28,8 @@ var _ = Describe("MachineClaim Controller", func() {
 		DeferCleanup(k8sClient.Delete, ns)
 	})
 
-	It("should claim a machine by ref", func(ctx SpecContext) {
-		By("Creating a machine")
+	It("should claim a Machine by ref", func(ctx SpecContext) {
+		By("Creating a Machine")
 		machine := &metalv1alpha1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -44,12 +44,12 @@ var _ = Describe("MachineClaim Controller", func() {
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
 		DeferCleanup(k8sClient.Delete, machine)
 
-		By("Patching machine state to Ready")
+		By("Patching Machine state to Ready")
 		Eventually(UpdateStatus(machine, func() {
 			machine.Status.State = metalv1alpha1.MachineStateReady
 		})).Should(Succeed())
 
-		By("Creating a machineclaim referencing the machine")
+		By("Creating a MachineClaim referencing the Machine")
 		claim := &metalv1alpha1.MachineClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -65,13 +65,13 @@ var _ = Describe("MachineClaim Controller", func() {
 		}
 		Expect(k8sClient.Create(ctx, claim)).To(Succeed())
 
-		By("Expecting finalizer and phase to be correct on the machineclaim")
+		By("Expecting finalizer and phase to be correct on the MachineClaim")
 		Eventually(Object(claim)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Status.Phase", Equal(metalv1alpha1.MachineClaimPhaseBound)),
 		))
 
-		By("Expecting finalizer and machineclaimref to be correct on the machine")
+		By("Expecting finalizer and machineclaimref to be correct on the Machine")
 		Eventually(Object(machine)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Spec.MachineClaimRef.Namespace", Equal(claim.Namespace)),
@@ -79,21 +79,21 @@ var _ = Describe("MachineClaim Controller", func() {
 			HaveField("Spec.MachineClaimRef.UID", Equal(claim.UID)),
 		))
 
-		By("Deleting the claim")
+		By("Deleting the MachineClaim")
 		Expect(k8sClient.Delete(ctx, claim)).To(Succeed())
 
-		By("Expecting machineclaimref and finalizer to be removed from the machine")
+		By("Expecting machineclaimref and finalizer to be removed from the Machine")
 		Eventually(Object(machine)).Should(SatisfyAll(
 			HaveField("Finalizers", Not(ContainElement(MachineClaimFinalizer))),
 			HaveField("Spec.MachineClaimRef", BeNil()),
 		))
 
-		By("Expecting machineclaim to be removed")
+		By("Expecting MachineClaim to be removed")
 		Eventually(Get(claim)).Should(Satisfy(errors.IsNotFound))
 	})
 
-	It("should claim a machine by selector", func(ctx SpecContext) {
-		By("Creating a machine")
+	It("should claim a Machine by selector", func(ctx SpecContext) {
+		By("Creating a Machine")
 		machine := &metalv1alpha1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -111,12 +111,12 @@ var _ = Describe("MachineClaim Controller", func() {
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
 		DeferCleanup(k8sClient.Delete, machine)
 
-		By("Patching machine state to Ready")
+		By("Patching Machine state to Ready")
 		Eventually(UpdateStatus(machine, func() {
 			machine.Status.State = metalv1alpha1.MachineStateReady
 		})).Should(Succeed())
 
-		By("Creating a machineclaim with a matching selector")
+		By("Creating a MachineClaim with a matching selector")
 		claim := &metalv1alpha1.MachineClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -134,14 +134,14 @@ var _ = Describe("MachineClaim Controller", func() {
 		}
 		Expect(k8sClient.Create(ctx, claim)).To(Succeed())
 
-		By("Expecting finalizer, machineref, and phase to be correct on the machineclaim")
+		By("Expecting finalizer, machineref, and phase to be correct on the MachineClaim")
 		Eventually(Object(claim)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Spec.MachineRef.Name", Equal(machine.Name)),
 			HaveField("Status.Phase", Equal(metalv1alpha1.MachineClaimPhaseBound)),
 		))
 
-		By("Expecting finalizer and machineclaimref to be correct on the machine")
+		By("Expecting finalizer and machineclaimref to be correct on the Machine")
 		Eventually(Object(machine)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Spec.MachineClaimRef.Namespace", Equal(claim.Namespace)),
@@ -149,21 +149,21 @@ var _ = Describe("MachineClaim Controller", func() {
 			HaveField("Spec.MachineClaimRef.UID", Equal(claim.UID)),
 		))
 
-		By("Deleting the machineclaim")
+		By("Deleting the MachineClaim")
 		Expect(k8sClient.Delete(ctx, claim)).To(Succeed())
 
-		By("Expecting machineclaimref and finalizer to be removed from the machine")
+		By("Expecting machineclaimref and finalizer to be removed from the Machine")
 		Eventually(Object(machine)).Should(SatisfyAll(
 			HaveField("Finalizers", Not(ContainElement(MachineClaimFinalizer))),
 			HaveField("Spec.MachineClaimRef", BeNil()),
 		))
 
-		By("Expecting machineclaim to be removed")
+		By("Expecting MachineClaim to be removed")
 		Eventually(Get(claim)).Should(Satisfy(errors.IsNotFound))
 	})
 
-	It("should not claim a machine with a wrong ref", func(ctx SpecContext) {
-		By("Creating a machineclaim referencing the machine")
+	It("should not claim a Machine with a wrong ref", func(ctx SpecContext) {
+		By("Creating a MachineClaim referencing the Machine")
 		claim := &metalv1alpha1.MachineClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -179,21 +179,21 @@ var _ = Describe("MachineClaim Controller", func() {
 		}
 		Expect(k8sClient.Create(ctx, claim)).To(Succeed())
 
-		By("Expecting finalizer and phase to be correct on the machineclaim")
+		By("Expecting finalizer and phase to be correct on the MachineClaim")
 		Eventually(Object(claim)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Status.Phase", Equal(metalv1alpha1.MachineClaimPhaseUnbound)),
 		))
 
-		By("Deleting the machineclaim")
+		By("Deleting the MachineClaim")
 		Expect(k8sClient.Delete(ctx, claim)).To(Succeed())
 
-		By("Expecting machineclaim to be removed")
+		By("Expecting MachineClaim to be removed")
 		Eventually(Get(claim)).Should(Satisfy(errors.IsNotFound))
 	})
 
-	It("should not claim a machine with no matching selector", func(ctx SpecContext) {
-		By("Creating a machine")
+	It("should not claim a Machine with no matching selector", func(ctx SpecContext) {
+		By("Creating a Machine")
 		machine := &metalv1alpha1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -211,12 +211,12 @@ var _ = Describe("MachineClaim Controller", func() {
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
 		DeferCleanup(k8sClient.Delete, machine)
 
-		By("Patching machine state to Ready")
+		By("Patching Machine state to Ready")
 		Eventually(UpdateStatus(machine, func() {
 			machine.Status.State = metalv1alpha1.MachineStateReady
 		})).Should(Succeed())
 
-		By("Creating a machineclaim referencing the machine")
+		By("Creating a MachineClaim referencing the Machine")
 		claim := &metalv1alpha1.MachineClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -234,27 +234,27 @@ var _ = Describe("MachineClaim Controller", func() {
 		}
 		Expect(k8sClient.Create(ctx, claim)).To(Succeed())
 
-		By("Expecting finalizer and phase to be correct on the machineclaim")
+		By("Expecting finalizer and phase to be correct on the MachineClaim")
 		Eventually(Object(claim)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Status.Phase", Equal(metalv1alpha1.MachineClaimPhaseUnbound)),
 		))
 
-		By("Expecting no finalizer or claimref on the machine")
+		By("Expecting no finalizer or claimref on the Machine")
 		Eventually(Object(machine)).Should(SatisfyAll(
 			HaveField("Finalizers", Not(ContainElement(MachineClaimFinalizer))),
 			HaveField("Spec.MachineClaimRef", BeNil()),
 		))
 
-		By("Deleting the machineclaim")
+		By("Deleting the MachineClaim")
 		Expect(k8sClient.Delete(ctx, claim)).To(Succeed())
 
-		By("Expecting machineclaim to be removed")
+		By("Expecting MachineClaim to be removed")
 		Eventually(Get(claim)).Should(Satisfy(errors.IsNotFound))
 	})
 
-	It("should claim a machine by ref once the machine becomes Ready", func(ctx SpecContext) {
-		By("Creating a machine")
+	It("should claim a Machine by ref once the Machine becomes Ready", func(ctx SpecContext) {
+		By("Creating a Machine")
 		machine := &metalv1alpha1.Machine{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -269,12 +269,12 @@ var _ = Describe("MachineClaim Controller", func() {
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
 		DeferCleanup(k8sClient.Delete, machine)
 
-		By("Patching machine state to Error")
+		By("Patching Machine state to Error")
 		Eventually(UpdateStatus(machine, func() {
 			machine.Status.State = metalv1alpha1.MachineStateError
 		})).Should(Succeed())
 
-		By("Creating a machineclaim referencing the machine")
+		By("Creating a MachineClaim referencing the Machine")
 		claim := &metalv1alpha1.MachineClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
@@ -291,33 +291,30 @@ var _ = Describe("MachineClaim Controller", func() {
 		Expect(k8sClient.Create(ctx, claim)).To(Succeed())
 		DeferCleanup(k8sClient.Delete, claim)
 
-		By("Expecting finalizer and phase to be correct on the machineclaim")
+		By("Expecting finalizer and phase to be correct on the MachineClaim")
 		Eventually(Object(claim)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Status.Phase", Equal(metalv1alpha1.MachineClaimPhaseUnbound)),
 		))
 
-		By("Expecting no finalizer or claimref on the machine")
+		By("Expecting no finalizer or claimref on the Machine")
 		Eventually(Object(machine)).Should(SatisfyAll(
 			HaveField("Finalizers", Not(ContainElement(MachineClaimFinalizer))),
 			HaveField("Spec.MachineClaimRef", BeNil()),
 		))
 
-		By("Waiting for reconciliation to finish")
-		// TODO: time.Sleep(1 * time.Second)
-
-		By("Patching machine state to Ready")
+		By("Patching Machine state to Ready")
 		Eventually(UpdateStatus(machine, func() {
 			machine.Status.State = metalv1alpha1.MachineStateReady
 		})).Should(Succeed())
 
-		By("Expecting finalizer and phase to be correct on the machineclaim")
+		By("Expecting finalizer and phase to be correct on the MachineClaim")
 		Eventually(Object(claim)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Status.Phase", Equal(metalv1alpha1.MachineClaimPhaseBound)),
 		))
 
-		By("Expecting finalizer and machineclaimref to be correct on the machine")
+		By("Expecting finalizer and machineclaimref to be correct on the Machine")
 		Eventually(Object(machine)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Spec.MachineClaimRef.Namespace", Equal(claim.Namespace)),
