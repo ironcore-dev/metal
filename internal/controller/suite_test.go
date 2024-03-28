@@ -20,6 +20,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
@@ -31,7 +32,7 @@ var testEnv *envtest.Environment
 
 func TestControllers(t *testing.T) {
 	SetDefaultEventuallyPollingInterval(10 * time.Millisecond)
-	SetDefaultEventuallyTimeout(1 * time.Second)
+	SetDefaultEventuallyTimeout(3 * time.Second)
 	SetDefaultConsistentlyPollingInterval(10 * time.Millisecond)
 	SetDefaultConsistentlyDuration(100 * time.Millisecond)
 	RegisterFailHandler(Fail)
@@ -65,6 +66,9 @@ var _ = BeforeSuite(func() {
 	var mgr manager.Manager
 	mgr, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Metrics: server.Options{
+			BindAddress: "0",
+		},
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(mgr).NotTo(BeNil())

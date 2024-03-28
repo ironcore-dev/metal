@@ -8,6 +8,7 @@ COPY go.sum go.sum
 RUN go mod download
 
 COPY api/ api/
+COPY client/ client/
 COPY cmd/ cmd/
 COPY internal/ internal/
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o metal cmd/main.go
