@@ -17,8 +17,8 @@ import (
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobsecrets/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobsecrets/finalizers,verbs=update
 
-func NewOOBSecretReconciler() *OOBSecretReconciler {
-	return &OOBSecretReconciler{}
+func NewOOBSecretReconciler() (*OOBSecretReconciler, error) {
+	return &OOBSecretReconciler{}, nil
 }
 
 // OOBSecretReconciler reconciles a OOBSecret object
@@ -36,6 +36,8 @@ func (r *OOBSecretReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ct
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OOBSecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Client = mgr.GetClient()
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.OOBSecret{}).
 		Complete(r)

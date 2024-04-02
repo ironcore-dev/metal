@@ -17,8 +17,8 @@ import (
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 
-func NewMachineReconciler() *MachineReconciler {
-	return &MachineReconciler{}
+func NewMachineReconciler() (*MachineReconciler, error) {
+	return &MachineReconciler{}, nil
 }
 
 // MachineReconciler reconciles a Machine object
@@ -36,6 +36,8 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Client = mgr.GetClient()
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.Machine{}).
 		Complete(r)

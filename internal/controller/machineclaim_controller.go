@@ -31,12 +31,13 @@ import (
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 
 const (
-	MachineClaimFieldOwner string = "metal.ironcore.dev/machineclaim"
-	MachineClaimFinalizer  string = "metal.ironcore.dev/machineclaim"
+	MachineClaimFieldOwner     string = "metal.ironcore.dev/machineclaim"
+	MachineClaimFinalizer      string = "metal.ironcore.dev/machineclaim"
+	MachineClaimSpecMachineRef string = ".spec.machineRef.Name"
 )
 
-func NewMachineClaimReconciler() *MachineClaimReconciler {
-	return &MachineClaimReconciler{}
+func NewMachineClaimReconciler() (*MachineClaimReconciler, error) {
+	return &MachineClaimReconciler{}, nil
 }
 
 // MachineClaimReconciler reconciles a MachineClaim object
@@ -145,12 +146,13 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 		machine := &m
 		ctx = log.WithValues(ctx, "machine", machine.Name)
 
-		machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace).WithFinalizers(MachineClaimFinalizer).
-			WithSpec(metalv1alpha1apply.MachineSpec().WithMachineClaimRef(v1.ObjectReference{
+		machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace).WithFinalizers(MachineClaimFinalizer).WithSpec(metalv1alpha1apply.MachineSpec().
+			WithMachineClaimRef(v1.ObjectReference{
 				Namespace: claim.Namespace,
 				Name:      claim.Name,
 				UID:       claim.UID,
-			}).WithPower(claim.Spec.Power))
+			}).
+			WithPower(claim.Spec.Power))
 		if !controllerutil.ContainsFinalizer(machine, MachineClaimFinalizer) ||
 			!internal.NilOrEqual(machine.Spec.MachineClaimRef, machineApply.Spec.MachineClaimRef) ||
 			machine.Spec.Power != *machineApply.Spec.Power {
@@ -192,7 +194,8 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MachineClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// TODO: Make an index for claim.spec.machineref.
+	r.Client = mgr.GetClient()
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.MachineClaim{}).
 		Watches(&metalv1alpha1.Machine{}, r.enqueueMachineClaimsFromMachine()).
@@ -203,9 +206,8 @@ func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine() handler.Event
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 		machine := obj.(*metalv1alpha1.Machine)
 
-		// TODO: Filter this list with a field selector.
 		claimList := &metalv1alpha1.MachineClaimList{}
-		if err := r.List(ctx, claimList); err != nil {
+		if err := r.List(ctx, claimList, client.MatchingFields{MachineClaimSpecMachineRef: machine.Name}); err != nil {
 			log.Error(ctx, fmt.Errorf("cannot list MachineClaims: %w", err))
 			return nil
 		}
@@ -217,13 +219,10 @@ func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine() handler.Event
 			}
 
 			// TODO: Also watch for machines matching the label selector.
-			ref := c.Spec.MachineRef
-			if ref != nil && ref.Name == machine.Name {
-				req = append(req, reconcile.Request{NamespacedName: types.NamespacedName{
-					Namespace: c.Namespace,
-					Name:      c.Name,
-				}})
-			}
+			req = append(req, reconcile.Request{NamespacedName: types.NamespacedName{
+				Namespace: c.Namespace,
+				Name:      c.Name,
+			}})
 		}
 		return req
 	})

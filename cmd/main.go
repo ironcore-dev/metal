@@ -184,8 +184,23 @@ func main() {
 		return
 	}
 
+	err = controller.CreateIndexes(ctx, mgr)
+	if err != nil {
+		log.Error(ctx, fmt.Errorf("cannot create indexes: %w", err))
+		exitCode = 1
+		return
+	}
+
 	if p.enableMachineController {
-		err = controller.NewMachineReconciler().SetupWithManager(mgr)
+		var machineReconciler *controller.MachineReconciler
+		machineReconciler, err = controller.NewMachineReconciler()
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Machine")
+			exitCode = 1
+			return
+		}
+
+		err = machineReconciler.SetupWithManager(mgr)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Machine")
 			exitCode = 1
@@ -194,7 +209,15 @@ func main() {
 	}
 
 	if p.enableMachineClaimController {
-		err = controller.NewMachineClaimReconciler().SetupWithManager(mgr)
+		var machineClaimReconciler *controller.MachineClaimReconciler
+		machineClaimReconciler, err = controller.NewMachineClaimReconciler()
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "MachineClaim")
+			exitCode = 1
+			return
+		}
+
+		err = machineClaimReconciler.SetupWithManager(mgr)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "MachineClaim")
 			exitCode = 1
@@ -203,7 +226,15 @@ func main() {
 	}
 
 	if p.enableOOBController {
-		err = controller.NewOOBReconciler().SetupWithManager(mgr)
+		var oobReconciler *controller.OOBReconciler
+		oobReconciler, err = controller.NewOOBReconciler()
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
+			exitCode = 1
+			return
+		}
+
+		err = oobReconciler.SetupWithManager(mgr)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
 			exitCode = 1
@@ -212,7 +243,15 @@ func main() {
 	}
 
 	if p.enableOOBSecretController {
-		err = controller.NewOOBSecretReconciler().SetupWithManager(mgr)
+		var oobSecretReconciler *controller.OOBSecretReconciler
+		oobSecretReconciler, err = controller.NewOOBSecretReconciler()
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOBSecret")
+			exitCode = 1
+			return
+		}
+
+		err = oobSecretReconciler.SetupWithManager(mgr)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOBSecret")
 			exitCode = 1

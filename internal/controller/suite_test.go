@@ -63,6 +63,9 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 	SetClient(k8sClient)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	DeferCleanup(cancel)
+
 	var mgr manager.Manager
 	mgr, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
@@ -72,13 +75,31 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(mgr).NotTo(BeNil())
+	Expect(CreateIndexes(ctx, mgr)).To(Succeed())
 
-	Expect((&MachineClaimReconciler{
-		Client: mgr.GetClient(),
-	}).SetupWithManager(mgr)).To(Succeed())
+	var machineReconciler *MachineReconciler
+	machineReconciler, err = NewMachineReconciler()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(machineReconciler).NotTo(BeNil())
+	Expect(machineReconciler.SetupWithManager(mgr)).To(Succeed())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	DeferCleanup(cancel)
+	var machineClaimReconciler *MachineClaimReconciler
+	machineClaimReconciler, err = NewMachineClaimReconciler()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(machineClaimReconciler).NotTo(BeNil())
+	Expect(machineClaimReconciler.SetupWithManager(mgr)).To(Succeed())
+
+	var oobReconciler *OOBReconciler
+	oobReconciler, err = NewOOBReconciler()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(oobReconciler).NotTo(BeNil())
+	Expect(oobReconciler.SetupWithManager(mgr)).To(Succeed())
+
+	var oobSecretReconciler *OOBSecretReconciler
+	oobSecretReconciler, err = NewOOBSecretReconciler()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(oobSecretReconciler).NotTo(BeNil())
+	Expect(oobSecretReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	go func() {
 		defer GinkgoRecover()

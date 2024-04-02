@@ -17,8 +17,8 @@ import (
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobs/finalizers,verbs=update
 
-func NewOOBReconciler() *OOBReconciler {
-	return &OOBReconciler{}
+func NewOOBReconciler() (*OOBReconciler, error) {
+	return &OOBReconciler{}, nil
 }
 
 // OOBReconciler reconciles a OOB object
@@ -36,6 +36,8 @@ func (r *OOBReconciler) Reconcile(ctx context.Context, _ ctrl.Request) (ctrl.Res
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OOBReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	r.Client = mgr.GetClient()
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.OOB{}).
 		Complete(r)

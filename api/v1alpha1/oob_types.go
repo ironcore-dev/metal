@@ -95,8 +95,9 @@ const (
 type OOBState string
 
 const (
-	OOBStateReady OOBState = "Ready"
-	OOBStateError OOBState = "Error"
+	OOBStateReady   OOBState = "Ready"
+	OOBStateUnready OOBState = "Unready"
+	OOBStateError   OOBState = "Error"
 )
 
 //+kubebuilder:object:root=true
