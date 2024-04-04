@@ -125,8 +125,6 @@ spec:
             required:
             - endpointRef
             - macAddress
-            - protocol
-            - secretRef
             type: object
           status:
             description: OOBStatus defines the observed state of OOB

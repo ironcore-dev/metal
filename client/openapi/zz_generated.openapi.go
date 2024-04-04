@@ -1148,7 +1148,7 @@ func schema_ironcore_dev_metal_api_v1alpha1_OOBSpec(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"macAddress", "endpointRef", "secretRef", "protocol"},
+				Required: []string{"macAddress", "endpointRef"},
 			},
 		},
 		Dependencies: []string{

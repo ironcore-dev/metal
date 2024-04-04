@@ -20,9 +20,11 @@ type OOBSpec struct {
 
 	EndpointRef v1.LocalObjectReference `json:"endpointRef"`
 
-	SecretRef v1.LocalObjectReference `json:"secretRef"`
+	//+optional
+	SecretRef v1.LocalObjectReference `json:"secretRef,omitempty"`
 
-	Protocol Protocol `json:"protocol"`
+	//+optional
+	Protocol Protocol `json:"protocol,omitempty"`
 
 	//+optional
 	Flags map[string]string `json:"flags,omitempty"`
