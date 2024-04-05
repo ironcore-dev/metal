@@ -11,21 +11,22 @@ import (
 // MachineClaimSpec defines the desired state of MachineClaim
 // TODO: Validate that exactly one of MachineRef or MachineSelector is set.
 type MachineClaimSpec struct {
-	//+optional
+	// +optional
 	MachineRef *v1.LocalObjectReference `json:"machineRef,omitempty"`
 
-	//+optional
+	// +optional
 	MachineSelector *metav1.LabelSelector `json:"machineSelector,omitempty"`
 
 	Image string `json:"image"`
 
+	// +kubebuilder:validation:Enum=On;Off
 	Power Power `json:"power"`
 
-	//+optional
+	// +optional
 	IgnitionSecretRef *v1.LocalObjectReference `json:"ignitionSecretRef,omitempty"`
 
-	//+optional
-	NetworkInterfaces []MachineClaimNetworkInterface `json:"networkInterfaces,omitempty"` // TODO: Revisit whether this is really optional.
+	// +optional
+	NetworkInterfaces []MachineClaimNetworkInterface `json:"networkInterfaces,omitempty"`
 }
 
 type MachineClaimNetworkInterface struct {
@@ -36,7 +37,8 @@ type MachineClaimNetworkInterface struct {
 
 // MachineClaimStatus defines the observed state of MachineClaim
 type MachineClaimStatus struct {
-	//+optional
+	// +kubebuilder:validation:Enum=Bound;Unbound
+	// +optional
 	Phase MachineClaimPhase `json:"phase,omitempty"`
 }
 
@@ -47,10 +49,10 @@ const (
 	MachineClaimPhaseUnbound MachineClaimPhase = "Unbound"
 )
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
-//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
 // +genclient
 
 // MachineClaim is the Schema for the machineclaims API
@@ -62,7 +64,7 @@ type MachineClaim struct {
 	Status MachineClaimStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // MachineClaimList contains a list of MachineClaim
 type MachineClaimList struct {

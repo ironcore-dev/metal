@@ -207,8 +207,16 @@ spec:
               sku:
                 type: string
               state:
+                enum:
+                - Ready
+                - Unready
+                - Error
                 type: string
               type:
+                enum:
+                - Machine
+                - Router
+                - Switch
                 type: string
             type: object
         type: object

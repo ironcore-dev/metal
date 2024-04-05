@@ -15,7 +15,7 @@ type OOBSecretSpecApplyConfiguration struct {
 	MACAddress     *string  `json:"macAddress,omitempty"`
 	Username       *string  `json:"username,omitempty"`
 	Password       *string  `json:"password,omitempty"`
-	ExpirationDate *v1.Time `json:"expirationDate,omitempty"`
+	ExpirationTime *v1.Time `json:"expirationTime,omitempty"`
 }
 
 // OOBSecretSpecApplyConfiguration constructs an declarative configuration of the OOBSecretSpec type for use with
@@ -48,10 +48,10 @@ func (b *OOBSecretSpecApplyConfiguration) WithPassword(value string) *OOBSecretS
 	return b
 }
 
-// WithExpirationDate sets the ExpirationDate field in the declarative configuration to the given value
+// WithExpirationTime sets the ExpirationTime field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the ExpirationDate field is set to the value of the last call.
-func (b *OOBSecretSpecApplyConfiguration) WithExpirationDate(value v1.Time) *OOBSecretSpecApplyConfiguration {
-	b.ExpirationDate = &value
+// If called multiple times, the ExpirationTime field is set to the value of the last call.
+func (b *OOBSecretSpecApplyConfiguration) WithExpirationTime(value v1.Time) *OOBSecretSpecApplyConfiguration {
+	b.ExpirationTime = &value
 	return b
 }

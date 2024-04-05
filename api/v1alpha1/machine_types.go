@@ -17,26 +17,28 @@ const (
 
 // MachineSpec defines the desired state of Machine
 type MachineSpec struct {
-	//+kubebuilder:validation:Pattern=`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`
+	// +kubebuilder:validation:Pattern=`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`
 	UUID string `json:"uuid"`
 
 	OOBRef v1.LocalObjectReference `json:"oobRef"`
 
 	InventoryRef *v1.LocalObjectReference `json:"inventoryRef,omitempty"`
 
-	//+optional
+	// +optional
 	MachineClaimRef *v1.ObjectReference `json:"machineClaimRef,omitempty"`
 
-	//+optional
+	// +optional
 	LoopbackAddressRef *v1.LocalObjectReference `json:"loopbackAddressRef,omitempty"`
 
-	//+optional
+	// +optional
 	ASN string `json:"asn,omitempty"`
 
-	//+optional
-	Power Power `json:"power,omitempty"` // TODO: Revisit whether this is really optional.
+	// +kubebuilder:validation:Enum=On;Off
+	// +optional
+	Power Power `json:"power,omitempty"`
 
-	//+optional
+	// +kubebuilder:validation:Enum=On;Off;Blinking
+	// +optional
 	LocatorLED LocatorLED `json:"locatorLED,omitempty"`
 }
 
@@ -57,67 +59,71 @@ const (
 
 // MachineStatus defines the observed state of Machine
 type MachineStatus struct {
-	//+optional
+	// +optional
 	Manufacturer string `json:"manufacturer,omitempty"`
 
-	//+optional
+	// +optional
 	SKU string `json:"sku,omitempty"`
 
-	//+optional
+	// +optional
 	SerialNumber string `json:"serialNumber,omitempty"`
 
-	//+optional
+	// +kubebuilder:validation:Enum=On;Off
+	// +optional
 	Power Power `json:"power,omitempty"`
 
-	//+optional
+	// +kubebuilder:validation:Enum=On;Off;Blinking
+	// +optional
 	LocatorLED LocatorLED `json:"locatorLED,omitempty"`
 
-	//+optional
+	// +optional
 	ShutdownDeadline *metav1.Time `json:"shutdownDeadline,omitempty"`
 
-	//+optional
+	// +optional
 	NetworkInterfaces []MachineNetworkInterface `json:"networkInterfaces"`
 
-	//+optional
+	// +optional
+	// +kubebuilder:validation:Enum=Ready;Unready;Error
 	State MachineState `json:"state,omitempty"`
 
-	//+patchStrategy=merge
-	//+patchMergeKey=type
-	//+optional
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 type MachineNetworkInterface struct {
 	Name string `json:"name"`
 
-	//+kubebuilder:validation:Pattern=`^[0-9a-f]{12}$`
+	// +kubebuilder:validation:Pattern=`^[0-9a-f]{12}$`
 	MacAddress string `json:"macAddress"`
 
-	//+optional
+	// +optional
 	IPRef *v1.LocalObjectReference `json:"IPRef,omitempty"`
 
-	//+optional
+	// +optional
 	SwitchRef *v1.LocalObjectReference `json:"switchRef,omitempty"`
 }
 
 type MachineState string
 
 const (
-	MachineStateReady MachineState = "Ready"
-	MachineStateError MachineState = "Error"
+	MachineStateReady  MachineState = "Ready"
+	MachineStateUneady MachineState = "Unready"
+	MachineStateError  MachineState = "Error"
 )
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:printcolumn:name="UUID",type=string,JSONPath=`.status.uuid`
-//+kubebuilder:printcolumn:name="Manufacturer",type=string,JSONPath=`.status.manufacturer`
-//+kubebuilder:printcolumn:name="SKU",type=string,JSONPath=`.status.sku`,priority=100
-//+kubebuilder:printcolumn:name="SerialNumber",type=string,JSONPath=`.status.serialNumber`,priority=100
-//+kubebuilder:printcolumn:name="Power",type=string,JSONPath=`.status.power`
-//+kubebuilder:printcolumn:name="LocatorLED",type=string,JSONPath=`.status.locatorLED`,priority=100
-//+kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
-//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:name="UUID",type=string,JSONPath=`.status.uuid`
+// +kubebuilder:printcolumn:name="Manufacturer",type=string,JSONPath=`.status.manufacturer`
+// +kubebuilder:printcolumn:name="SKU",type=string,JSONPath=`.status.sku`,priority=100
+// +kubebuilder:printcolumn:name="SerialNumber",type=string,JSONPath=`.status.serialNumber`,priority=100
+// +kubebuilder:printcolumn:name="Power",type=string,JSONPath=`.status.power`
+// +kubebuilder:printcolumn:name="LocatorLED",type=string,JSONPath=`.status.locatorLED`,priority=100
+// +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
 // +genclient
 
 // Machine is the Schema for the machines API
@@ -129,7 +135,7 @@ type Machine struct {
 	Status MachineStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // MachineList contains a list of Machine
 type MachineList struct {

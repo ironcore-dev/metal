@@ -15,21 +15,21 @@ const (
 
 // OOBSpec defines the desired state of OOB
 type OOBSpec struct {
-	//+kubebuilder:validation:Pattern=`^[0-9a-f]{12}$`
+	// +kubebuilder:validation:Pattern=`^[0-9a-f]{12}$`
 	MACAddress string `json:"macAddress"`
 
 	EndpointRef v1.LocalObjectReference `json:"endpointRef"`
 
-	//+optional
-	SecretRef v1.LocalObjectReference `json:"secretRef,omitempty"`
+	// +optional
+	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
 
-	//+optional
-	Protocol Protocol `json:"protocol,omitempty"`
+	// +optional
+	Protocol *Protocol `json:"protocol,omitempty"`
 
-	//+optional
+	// +optional
 	Flags map[string]string `json:"flags,omitempty"`
 
-	//+optional
+	// +optional
 	ConsoleProtocol *ConsoleProtocol `json:"consoleProtocol,omitempty"`
 }
 
@@ -62,27 +62,29 @@ const (
 
 // OOBStatus defines the observed state of OOB
 type OOBStatus struct {
-	//+optional
+	// +kubebuilder:validation:Enum=Machine;Router;Switch
+	// +optional
 	Type OOBType `json:"type,omitempty"`
 
-	//+optional
+	// +optional
 	Manufacturer string `json:"manufacturer,omitempty"`
 
-	//+optional
+	// +optional
 	SKU string `json:"sku,omitempty"`
 
-	//+optional
+	// +optional
 	SerialNumber string `json:"serialNumber,omitempty"`
 
-	//+optional
+	// +optional
 	FirmwareVersion string `json:"firmwareVersion,omitempty"`
 
-	//+optional
+	// +kubebuilder:validation:Enum=Ready;Unready;Error
+	// +optional
 	State OOBState `json:"state,omitempty"`
 
-	//+patchStrategy=merge
-	//+patchMergeKey=type
-	//+optional
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
@@ -102,17 +104,17 @@ const (
 	OOBStateError   OOBState = "Error"
 )
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:printcolumn:name="MACAddress",type=string,JSONPath=`.spec.macAddress`
-//+kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.status.type`
-//+kubebuilder:printcolumn:name="Manufacturer",type=string,JSONPath=`.status.manufacturer`
-//+kubebuilder:printcolumn:name="SKU",type=string,JSONPath=`.status.sku`,priority=100
-//+kubebuilder:printcolumn:name="SerialNumber",type=string,JSONPath=`.status.serialNumber`,priority=100
-//+kubebuilder:printcolumn:name="FirmwareVersion",type=string,JSONPath=`.status.firmwareVersion`,priority=100
-//+kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
-//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:name="MACAddress",type=string,JSONPath=`.spec.macAddress`
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.status.type`
+// +kubebuilder:printcolumn:name="Manufacturer",type=string,JSONPath=`.status.manufacturer`
+// +kubebuilder:printcolumn:name="SKU",type=string,JSONPath=`.status.sku`,priority=100
+// +kubebuilder:printcolumn:name="SerialNumber",type=string,JSONPath=`.status.serialNumber`,priority=100
+// +kubebuilder:printcolumn:name="FirmwareVersion",type=string,JSONPath=`.status.firmwareVersion`,priority=100
+// +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
 // +genclient
 
 // OOB is the Schema for the oobs API
@@ -124,7 +126,7 @@ type OOB struct {
 	Status OOBStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // OOBList contains a list of OOB
 type OOBList struct {

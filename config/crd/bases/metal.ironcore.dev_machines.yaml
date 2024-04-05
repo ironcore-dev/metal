@@ -83,6 +83,10 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               locatorLED:
+                enum:
+                - "On"
+                - "Off"
+                - Blinking
                 type: string
               loopbackAddressRef:
                 description: |-
@@ -172,6 +176,9 @@ spec:
                 type: object
                 x-kubernetes-map-type: atomic
               power:
+                enum:
+                - "On"
+                - "Off"
                 type: string
               uuid:
                 pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
@@ -253,6 +260,10 @@ spec:
                   type: object
                 type: array
               locatorLED:
+                enum:
+                - "On"
+                - "Off"
+                - Blinking
                 type: string
               manufacturer:
                 type: string
@@ -296,6 +307,9 @@ spec:
                   type: object
                 type: array
               power:
+                enum:
+                - "On"
+                - "Off"
                 type: string
               serialNumber:
                 type: string
@@ -305,6 +319,10 @@ spec:
               sku:
                 type: string
               state:
+                enum:
+                - Ready
+                - Unready
+                - Error
                 type: string
             type: object
         type: object

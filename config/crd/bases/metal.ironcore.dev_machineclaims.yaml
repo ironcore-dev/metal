@@ -136,6 +136,9 @@ spec:
                   type: object
                 type: array
               power:
+                enum:
+                - "On"
+                - "Off"
                 type: string
             required:
             - image
@@ -145,6 +148,9 @@ spec:
             description: MachineClaimStatus defines the observed state of MachineClaim
             properties:
               phase:
+                enum:
+                - Bound
+                - Unbound
                 type: string
             type: object
         type: object

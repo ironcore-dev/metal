@@ -9,30 +9,30 @@ import (
 
 // OOBSecretSpec defines the desired state of OOBSecret
 type OOBSecretSpec struct {
-	//+kubebuilder:validation:Pattern=`^[0-9a-f]{12}$`
+	// +kubebuilder:validation:Pattern=`^[0-9a-f]{12}$`
 	MACAddress string `json:"macAddress"`
 
 	Username string `json:"username"`
 
 	Password string `json:"password"`
 
-	//+optional
-	ExpirationDate *metav1.Time `json:"expirationDate,omitempty"`
+	// +optional
+	ExpirationTime *metav1.Time `json:"expirationTime,omitempty"`
 }
 
 // OOBSecretStatus defines the observed state of OOBSecret
 type OOBSecretStatus struct {
-	//+patchStrategy=merge
-	//+patchMergeKey=type
-	//+optional
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster
-//+kubebuilder:printcolumn:name="MACAddress",type=string,JSONPath=`.spec.macAddress`
-//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
+// +kubebuilder:printcolumn:name="MACAddress",type=string,JSONPath=`.spec.macAddress`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
 // +genclient
 
 // OOBSecret is the Schema for the oobsecrets API
@@ -44,7 +44,7 @@ type OOBSecret struct {
 	Status OOBSecretStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // OOBSecretList contains a list of OOBSecret
 type OOBSecretList struct {
