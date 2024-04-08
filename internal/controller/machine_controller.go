@@ -13,9 +13,9 @@ import (
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 )
 
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 
 func NewMachineReconciler() (*MachineReconciler, error) {
 	return &MachineReconciler{}, nil

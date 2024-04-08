@@ -1111,8 +1111,7 @@ func schema_ironcore_dev_metal_api_v1alpha1_OOBSpec(ref common.ReferenceCallback
 					},
 					"endpointRef": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]interface{}{},
-							Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
+							Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
 						},
 					},
 					"secretRef": {
@@ -1146,7 +1145,7 @@ func schema_ironcore_dev_metal_api_v1alpha1_OOBSpec(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"macAddress", "endpointRef"},
+				Required: []string{"macAddress"},
 			},
 		},
 		Dependencies: []string{
@@ -7320,7 +7319,6 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimSpec(ref common.ReferenceCall
 										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
-										Enum:    []interface{}{"ReadOnlyMany", "ReadWriteMany", "ReadWriteOnce", "ReadWriteOncePod"},
 									},
 								},
 							},
@@ -7413,7 +7411,6 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref common.ReferenceCa
 										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
-										Enum:    []interface{}{"ReadOnlyMany", "ReadWriteMany", "ReadWriteOnce", "ReadWriteOncePod"},
 									},
 								},
 							},
@@ -7483,7 +7480,6 @@ func schema_k8sio_api_core_v1_PersistentVolumeClaimStatus(ref common.ReferenceCa
 										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
-										Enum:    []interface{}{"ControllerResizeFailed", "ControllerResizeInProgress", "NodeResizeFailed", "NodeResizeInProgress", "NodeResizePending"},
 									},
 								},
 							},
@@ -7930,7 +7926,6 @@ func schema_k8sio_api_core_v1_PersistentVolumeSpec(ref common.ReferenceCallback)
 										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
-										Enum:    []interface{}{"ReadOnlyMany", "ReadWriteMany", "ReadWriteOnce", "ReadWriteOncePod"},
 									},
 								},
 							},
@@ -10946,7 +10941,6 @@ func schema_k8sio_api_core_v1_ResourceQuotaSpec(ref common.ReferenceCallback) co
 										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
-										Enum:    []interface{}{"BestEffort", "CrossNamespacePodAffinity", "NotBestEffort", "NotTerminating", "PriorityClass", "Terminating"},
 									},
 								},
 							},
@@ -12363,10 +12357,10 @@ func schema_k8sio_api_core_v1_ServiceSpec(ref common.ReferenceCallback) common.O
 					},
 					"externalTrafficPolicy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "externalTrafficPolicy describes how nodes distribute service traffic they receive on one of the Service's \"externally-facing\" addresses (NodePorts, ExternalIPs, and LoadBalancer IPs). If set to \"Local\", the proxy will configure the service in a way that assumes that external load balancers will take care of balancing the service traffic between nodes, and so each node will deliver traffic only to the node-local endpoints of the service, without masquerading the client source IP. (Traffic mistakenly sent to a node with no endpoints will be dropped.) The default value, \"Cluster\", uses the standard behavior of routing to all endpoints evenly (possibly modified by topology and other features). Note that traffic sent to an External IP or LoadBalancer IP from within the cluster will always get \"Cluster\" semantics, but clients sending to a NodePort from within the cluster may need to take traffic policy into account when picking a node.\n\nPossible enum values:\n - `\"Cluster\"`\n - `\"Local\"` preserves the source IP of the traffic by routing only to endpoints on the same node as the traffic was received on (dropping the traffic if there are no local endpoints).",
+							Description: "externalTrafficPolicy describes how nodes distribute service traffic they receive on one of the Service's \"externally-facing\" addresses (NodePorts, ExternalIPs, and LoadBalancer IPs). If set to \"Local\", the proxy will configure the service in a way that assumes that external load balancers will take care of balancing the service traffic between nodes, and so each node will deliver traffic only to the node-local endpoints of the service, without masquerading the client source IP. (Traffic mistakenly sent to a node with no endpoints will be dropped.) The default value, \"Cluster\", uses the standard behavior of routing to all endpoints evenly (possibly modified by topology and other features). Note that traffic sent to an External IP or LoadBalancer IP from within the cluster will always get \"Cluster\" semantics, but clients sending to a NodePort from within the cluster may need to take traffic policy into account when picking a node.\n\nPossible enum values:\n - `\"Cluster\"`\n - `\"Cluster\"` routes traffic to all endpoints.\n - `\"Local\"`\n - `\"Local\"` preserves the source IP of the traffic by routing only to endpoints on the same node as the traffic was received on (dropping the traffic if there are no local endpoints).",
 							Type:        []string{"string"},
 							Format:      "",
-							Enum:        []interface{}{"Cluster", "Local"},
+							Enum:        []interface{}{"Cluster", "Cluster", "Local", "Local"},
 						},
 					},
 					"healthCheckNodePort": {
@@ -12404,7 +12398,6 @@ func schema_k8sio_api_core_v1_ServiceSpec(ref common.ReferenceCallback) common.O
 										Default: "",
 										Type:    []string{"string"},
 										Format:  "",
-										Enum:    []interface{}{"", "IPv4", "IPv6"},
 									},
 								},
 							},

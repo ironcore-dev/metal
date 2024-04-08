@@ -30,6 +30,7 @@ import (
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"github.com/ironcore-dev/metal/internal/controller"
 	"github.com/ironcore-dev/metal/internal/log"
+	"github.com/ironcore-dev/metal/internal/namespace"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -41,6 +42,7 @@ type params struct {
 	secureMetrics                bool
 	enableHTTP2                  bool
 	kubeconfig                   string
+	systemNamespace              string
 	enableMachineController      bool
 	enableMachineClaimController bool
 	enableOOBController          bool
@@ -59,6 +61,7 @@ func parseCmdLine() params {
 	pflag.Bool("metrics-secure", false, "Serve metrics securely.")
 	pflag.Bool("enable-http2", false, "Enable HTTP2 for the metrics and webhook servers.")
 	pflag.String("kubeconfig", "", "Use a kubeconfig to run out of cluster.")
+	pflag.String("system-namespace", "", "Use a specific namespace for controller state. If blank, use the in-cluster namespace. Required if running out of cluster.")
 	pflag.Bool("enable-machine-controller", true, "Enable the Machine controller.")
 	pflag.Bool("enable-machineclaim-controller", true, "Enable the MachineClaim controller.")
 	pflag.Bool("enable-oob-controller", true, "Enable the OOB controller.")
@@ -88,6 +91,7 @@ func parseCmdLine() params {
 		secureMetrics:                viper.GetBool("metrics-secure"),
 		enableHTTP2:                  viper.GetBool("enable-http2"),
 		kubeconfig:                   viper.GetString("kubeconfig"),
+		systemNamespace:              viper.GetString("system-namespace"),
 		enableMachineController:      viper.GetBool("enable-machine-controller"),
 		enableMachineClaimController: viper.GetBool("enable-machineclaim-controller"),
 		enableOOBController:          viper.GetBool("enable-oob-controller"),
@@ -120,7 +124,7 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(log.Setup(context.Background(), p.dev, false, os.Stderr), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGHUP)
 	defer stop()
-	log.Info(ctx, "Starting OOB operator")
+	log.Info(ctx, "Starting Metal")
 
 	defer func() {
 		log.Info(ctx, "Exiting", "exitCode", exitCode)
@@ -151,6 +155,15 @@ func main() {
 		log.Error(ctx, fmt.Errorf("cannot get kubeconfig: %w", err))
 		exitCode = 1
 		return
+	}
+
+	if p.systemNamespace == "" {
+		p.systemNamespace = namespace.InClusterNamespace()
+		if p.systemNamespace == "" {
+			log.Error(ctx, fmt.Errorf("system namespace must be specified when running out of cluster"))
+			exitCode = 1
+			return
+		}
 	}
 
 	var tlsOpts []func(*tls.Config)

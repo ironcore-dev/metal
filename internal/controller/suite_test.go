@@ -5,70 +5,88 @@ package controller
 
 import (
 	"context"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/kubernetes/scheme"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	. "sigs.k8s.io/controller-runtime/pkg/envtest/komega"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
+	"github.com/ironcore-dev/metal/internal/log"
 	//+kubebuilder:scaffold:imports
 )
 
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
+var (
+	k8sClient client.Client
+)
 
 func TestControllers(t *testing.T) {
-	SetDefaultEventuallyPollingInterval(10 * time.Millisecond)
 	SetDefaultEventuallyTimeout(3 * time.Second)
-	SetDefaultConsistentlyPollingInterval(10 * time.Millisecond)
-	SetDefaultConsistentlyDuration(100 * time.Millisecond)
 	RegisterFailHandler(Fail)
 
-	RunSpecs(t, "Controller Suite")
+	RunSpecs(t, "Controller")
 }
 
 var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+	path, err := exec.Command("go", "run", "sigs.k8s.io/controller-runtime/tools/setup-envtest", "use", "-p=path").Output()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(os.Setenv("KUBEBUILDER_ASSETS", string(path))).To(Succeed())
 
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
+	ctx, cancel := context.WithCancel(log.Setup(context.Background(), true, false, GinkgoWriter))
+	DeferCleanup(cancel)
+	l := logr.FromContextOrDiscard(ctx)
+	klog.SetLogger(l)
+	ctrl.SetLogger(l)
+
+	scheme := runtime.NewScheme()
+	Expect(kscheme.AddToScheme(scheme)).To(Succeed())
+	Expect(metalv1alpha1.AddToScheme(scheme)).To(Succeed())
+	//+kubebuilder:scaffold:scheme
+
+	testEnv := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "config", "crd", "bases"),
+		},
 	}
-
-	var err error
+	var cfg *rest.Config
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 	DeferCleanup(testEnv.Stop)
 
-	Expect(metalv1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
-	//+kubebuilder:scaffold:scheme
-
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 	SetClient(k8sClient)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	DeferCleanup(cancel)
+	ns := v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: "system-",
+		},
+	}
+	Expect(k8sClient.Create(ctx, &ns)).To(Succeed())
+	DeferCleanup(k8sClient.Delete, &ns)
 
 	var mgr manager.Manager
 	mgr, err = ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme.Scheme,
+		Scheme: scheme,
 		Metrics: server.Options{
 			BindAddress: "0",
 		},
@@ -101,9 +119,12 @@ var _ = BeforeSuite(func() {
 	Expect(oobSecretReconciler).NotTo(BeNil())
 	Expect(oobSecretReconciler.SetupWithManager(mgr)).To(Succeed())
 
+	mgrCtx, mgrCancel := context.WithCancel(ctx)
+	DeferCleanup(mgrCancel)
+
 	go func() {
 		defer GinkgoRecover()
 
-		Expect(mgr.Start(ctx)).To(Succeed())
+		Expect(mgr.Start(mgrCtx)).To(Succeed())
 	}()
 })

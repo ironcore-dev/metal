@@ -50,11 +50,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet ## Run tests.
-	@KUBEBUILDER_ASSETS="$(shell go run sigs.k8s.io/controller-runtime/tools/setup-envtest use -p path)" go test $$(go list ./... | grep -v /e2e)
-
-.PHONY: test-e2e
-test-e2e: ## Run the e2e tests against a Kind k8s instance that is spun up.
-	@go test ./test/e2e/ -v -ginkgo.v
+	@go run github.com/onsi/ginkgo/v2/ginkgo -r --race --randomize-suites --randomize-all --keep-going --timeout=9223372036s
 
 .PHONY: lint
 lint: ## Run golangci-lint linter & yamllint.

@@ -18,7 +18,8 @@ type OOBSpec struct {
 	// +kubebuilder:validation:Pattern=`^[0-9a-f]{12}$`
 	MACAddress string `json:"macAddress"`
 
-	EndpointRef v1.LocalObjectReference `json:"endpointRef"`
+	// +optional
+	EndpointRef *v1.LocalObjectReference `json:"endpointRef,omitempty"`
 
 	// +optional
 	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`

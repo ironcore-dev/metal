@@ -23,12 +23,12 @@ import (
 	"github.com/ironcore-dev/metal/internal/util"
 )
 
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machineclaims,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machineclaims/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machineclaims/finalizers,verbs=update
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get
-//+kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machineclaims,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machineclaims/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machineclaims/finalizers,verbs=update
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 
 const (
 	MachineClaimFieldOwner     string = "metal.ironcore.dev/machineclaim"
