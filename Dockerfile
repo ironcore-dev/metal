@@ -13,7 +13,7 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o metal cmd/main.go
 
-FROM debian:bookworm-20240311-slim
+FROM debian:bookworm-20240408-slim
 WORKDIR /
 USER 65532:65532
 ENTRYPOINT ["/metal"]
