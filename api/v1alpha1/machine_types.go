@@ -84,7 +84,7 @@ type MachineStatus struct {
 	NetworkInterfaces []MachineNetworkInterface `json:"networkInterfaces"`
 
 	// +optional
-	// +kubebuilder:validation:Enum=Ready;Unready;Error
+	// +kubebuilder:validation:Enum=Initial;Available;Reserved;Tainted;Maintenance
 	State MachineState `json:"state,omitempty"`
 
 	// +patchStrategy=merge
@@ -112,6 +112,12 @@ const (
 	MachineStateReady  MachineState = "Ready"
 	MachineStateUneady MachineState = "Unready"
 	MachineStateError  MachineState = "Error"
+
+	MachineStateInitial     = "Initial"
+	MachineStateAvailable   = "Available"
+	MachineStateReserved    = "Reserved"
+	MachineStateTainted     = "Tainted"
+	MachineStateMaintenance = "Maintenance"
 )
 
 const (
