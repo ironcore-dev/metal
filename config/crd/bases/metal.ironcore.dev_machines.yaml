@@ -345,9 +345,11 @@ spec:
                 type: string
               state:
                 enum:
-                - Ready
-                - Unready
-                - Error
+                - Initial
+                - Available
+                - Reserved
+                - Tainted
+                - Maintenance
                 type: string
             type: object
         type: object

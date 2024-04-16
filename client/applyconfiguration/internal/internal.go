@@ -37,6 +37,16 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: numeric
       default: 0
+- name: com.github.ironcore-dev.metal.api.v1alpha1.Inventory
+  scalar: untyped
+  list:
+    elementType:
+      namedType: __untyped_atomic_
+    elementRelationship: atomic
+  map:
+    elementType:
+      namedType: __untyped_deduced_
+    elementRelationship: separable
 - name: com.github.ironcore-dev.metal.api.v1alpha1.Machine
   map:
     fields:

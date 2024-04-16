@@ -16,8 +16,28 @@ import (
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
 	// Group=metal.ironcore.dev, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithKind("BlockSpec"):
+		return &apiv1alpha1.BlockSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConsoleProtocol"):
 		return &apiv1alpha1.ConsoleProtocolApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("CPUSpec"):
+		return &apiv1alpha1.CPUSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("DistroSpec"):
+		return &apiv1alpha1.DistroSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("HostSpec"):
+		return &apiv1alpha1.HostSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("Inventory"):
+		return &apiv1alpha1.InventoryApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("InventorySpec"):
+		return &apiv1alpha1.InventorySpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("InventoryStatus"):
+		return &apiv1alpha1.InventoryStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("InventoryStatuses"):
+		return &apiv1alpha1.InventoryStatusesApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("IPMISpec"):
+		return &apiv1alpha1.IPMISpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("LLDPSpec"):
+		return &apiv1alpha1.LLDPSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Machine"):
 		return &apiv1alpha1.MachineApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("MachineClaim"):
@@ -34,6 +54,14 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.MachineSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("MachineStatus"):
 		return &apiv1alpha1.MachineStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("MemorySpec"):
+		return &apiv1alpha1.MemorySpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("NDPSpec"):
+		return &apiv1alpha1.NDPSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("NICSpec"):
+		return &apiv1alpha1.NICSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("NumaSpec"):
+		return &apiv1alpha1.NumaSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OOB"):
 		return &apiv1alpha1.OOBApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OOBSecret"):
@@ -44,8 +72,20 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.OOBSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OOBStatus"):
 		return &apiv1alpha1.OOBStatusApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PartitionSpec"):
+		return &apiv1alpha1.PartitionSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PartitionTableSpec"):
+		return &apiv1alpha1.PartitionTableSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PCIDeviceDescriptionSpec"):
+		return &apiv1alpha1.PCIDeviceDescriptionSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("PCIDeviceSpec"):
+		return &apiv1alpha1.PCIDeviceSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Protocol"):
 		return &apiv1alpha1.ProtocolApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("SystemSpec"):
+		return &apiv1alpha1.SystemSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("VirtSpec"):
+		return &apiv1alpha1.VirtSpecApplyConfiguration{}
 
 	}
 	return nil
