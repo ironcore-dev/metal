@@ -5,6 +5,27 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ipam.metal.ironcore.dev
+  resources:
+  - ips
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ipam.metal.ironcore.dev
+  resources:
+  - ips/status
+  verbs:
+  - get
+- apiGroups:
   - metal.ironcore.dev
   resources:
   - machineclaims

@@ -47,6 +47,10 @@ type params struct {
 	enableMachineController      bool
 	enableMachineClaimController bool
 	enableOOBController          bool
+	oobIpLabelSelector           string
+	oobMacDB                     string
+	oobUsernamePrefix            string
+	oobTemporaryPasswordSecret   string
 	enableOOBSecretController    bool
 }
 
@@ -66,6 +70,10 @@ func parseCmdLine() params {
 	pflag.Bool("enable-machine-controller", true, "Enable the Machine controller.")
 	pflag.Bool("enable-machineclaim-controller", true, "Enable the MachineClaim controller.")
 	pflag.Bool("enable-oob-controller", true, "Enable the OOB controller.")
+	pflag.String("oob-ip-label-selector", "", "OOB: Filter IP objects by labels.")
+	pflag.String("oob-mac-db", "", "OOB: Load MAC DB from file.")
+	pflag.String("oob-username-prefix", "metal-", "OOB: Use a prefix when creating BMC users. Cannot be empty.")
+	pflag.String("oob-temporary-password-secret", "bmc-temporary-password", "OOB: Secret to store a temporary password in. Will be generated if it does not exist.")
 	pflag.Bool("enable-oobsecret-controller", true, "Enable the OOBSecret controller.")
 
 	var help bool
@@ -96,6 +104,10 @@ func parseCmdLine() params {
 		enableMachineController:      viper.GetBool("enable-machine-controller"),
 		enableMachineClaimController: viper.GetBool("enable-machineclaim-controller"),
 		enableOOBController:          viper.GetBool("enable-oob-controller"),
+		oobIpLabelSelector:           viper.GetString("oob-ip-label-selector"),
+		oobMacDB:                     viper.GetString("oob-mac-db"),
+		oobUsernamePrefix:            viper.GetString("oob-username-prefix"),
+		oobTemporaryPasswordSecret:   viper.GetString("oob-temporary-password-secret"),
 		enableOOBSecretController:    viper.GetBool("enable-oobsecret-controller"),
 	}
 }
@@ -247,7 +259,7 @@ func main() {
 
 	if p.enableOOBController {
 		var oobReconciler *controller.OOBReconciler
-		oobReconciler, err = controller.NewOOBReconciler()
+		oobReconciler, err = controller.NewOOBReconciler(p.systemNamespace, p.oobIpLabelSelector, p.oobMacDB, p.oobUsernamePrefix, p.oobTemporaryPasswordSecret)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
 			exitCode = 1

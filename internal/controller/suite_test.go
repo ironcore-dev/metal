@@ -89,6 +89,16 @@ var _ = BeforeSuite(func() {
 		Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
 	})
 
+	ns = &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: OOBTemporaryNamespaceHack,
+		},
+	}
+	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
+	DeferCleanup(func(ctx SpecContext) {
+		Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
+	})
+
 	var mgr manager.Manager
 	mgr, err = ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme,
@@ -113,7 +123,7 @@ var _ = BeforeSuite(func() {
 	Expect(machineClaimReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	var oobReconciler *OOBReconciler
-	oobReconciler, err = NewOOBReconciler()
+	oobReconciler, err = NewOOBReconciler(ns.Name, "", "", "metal-", "bmc-temporary-password")
 	Expect(err).NotTo(HaveOccurred())
 	Expect(oobReconciler).NotTo(BeNil())
 	Expect(oobReconciler.SetupWithManager(mgr)).To(Succeed())
