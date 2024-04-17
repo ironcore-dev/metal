@@ -58,10 +58,6 @@ var _ = BeforeSuite(func() {
 	scheme := runtime.NewScheme()
 	Expect(kscheme.AddToScheme(scheme)).To(Succeed())
 	Expect(metalv1alpha1.AddToScheme(scheme)).To(Succeed())
-	//+kubebuilder:scaffold:scheme
-
-	Expect(kscheme.AddToScheme(scheme)).To(Succeed())
-	Expect(metalv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(ipamv1alpha1.AddToScheme(scheme)).To(Succeed())
 	//+kubebuilder:scaffold:scheme
 
