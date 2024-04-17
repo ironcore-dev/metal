@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/go-logr/logr"
+	ipamv1alpha1 "github.com/ironcore-dev/ipam/api/ipam/v1alpha1"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -142,6 +143,12 @@ func main() {
 		return
 	}
 	err = metalv1alpha1.AddToScheme(scheme)
+	if err != nil {
+		log.Error(ctx, fmt.Errorf("cannot create type scheme: %w", err))
+		exitCode = 1
+		return
+	}
+	err = ipamv1alpha1.AddToScheme(scheme)
 	if err != nil {
 		log.Error(ctx, fmt.Errorf("cannot create type scheme: %w", err))
 		exitCode = 1

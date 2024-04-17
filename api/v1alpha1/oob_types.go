@@ -49,8 +49,7 @@ const (
 
 type ConsoleProtocol struct {
 	Name ConsoleProtocolName `json:"name"`
-
-	Port int32 `json:"port"`
+	Port int32               `json:"port"`
 }
 
 type ConsoleProtocolName string
@@ -79,7 +78,7 @@ type OOBStatus struct {
 	// +optional
 	FirmwareVersion string `json:"firmwareVersion,omitempty"`
 
-	// +kubebuilder:validation:Enum=Ready;Unready;Error
+	// +kubebuilder:validation:Enum=Ready;Unready;Ignored;Error
 	// +optional
 	State OOBState `json:"state,omitempty"`
 
@@ -102,7 +101,16 @@ type OOBState string
 const (
 	OOBStateReady   OOBState = "Ready"
 	OOBStateUnready OOBState = "Unready"
+	OOBStateIgnored OOBState = "Ignored"
 	OOBStateError   OOBState = "Error"
+)
+
+const (
+	OOBConditionTypeReady        = "Ready"
+	OOBConditionReasonInProgress = "InProgress"
+	OOBConditionReasonNoEndpoint = "NoEndpoint"
+	OOBConditionReasonIgnored    = "Ignored"
+	OOBConditionReasonError      = "Error"
 )
 
 // +kubebuilder:object:root=true

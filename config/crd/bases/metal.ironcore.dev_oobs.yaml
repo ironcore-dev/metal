@@ -209,6 +209,7 @@ spec:
                 enum:
                 - Ready
                 - Unready
+                - Ignored
                 - Error
                 type: string
               type:

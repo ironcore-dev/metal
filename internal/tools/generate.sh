@@ -23,7 +23,7 @@ go run k8s.io/code-generator/cmd/openapi-gen \
   -O zz_generated.openapi \
   --report-filename "/dev/null"
 
-go run github.com/ironcore-dev/metal/internal/tools/models-schema --openapi-package "github.com/ironcore-dev/metal/client/openapi" --openapi-title "metal" > "$MODELSSCHEMA"
+go run github.com/ironcore-dev/metal/internal/tools/models-schema > "$MODELSSCHEMA"
 go run k8s.io/code-generator/cmd/applyconfiguration-gen \
   --output-base "$GOPATH/src" \
   --go-header-file hack/boilerplate.go.txt \

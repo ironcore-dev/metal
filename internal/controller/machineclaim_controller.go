@@ -19,7 +19,7 @@ import (
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
 	"github.com/ironcore-dev/metal/internal/log"
-	"github.com/ironcore-dev/metal/internal/patch"
+	"github.com/ironcore-dev/metal/internal/ssa"
 	"github.com/ironcore-dev/metal/internal/util"
 )
 
@@ -91,7 +91,7 @@ func (r *MachineClaimReconciler) finalize(ctx context.Context, claim *metalv1alp
 
 		log.Debug(ctx, "Updating Machine")
 		machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace).WithFinalizers().WithSpec(metalv1alpha1apply.MachineSpec())
-		err = r.Patch(ctx, &machine, patch.Apply(machineApply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
+		err = r.Patch(ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 		if err != nil {
 			return fmt.Errorf("cannot patch Machine: %w", err)
 		}
@@ -99,7 +99,7 @@ func (r *MachineClaimReconciler) finalize(ctx context.Context, claim *metalv1alp
 
 	log.Debug(ctx, "Removing finalizer")
 	apply := metalv1alpha1apply.MachineClaim(claim.Name, claim.Namespace).WithFinalizers()
-	err := r.Patch(ctx, claim, patch.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
+	err := r.Patch(ctx, claim, ssa.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 	if err != nil {
 		return fmt.Errorf("cannot remove finalizer: %w", err)
 	}
@@ -157,7 +157,7 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 			!util.NilOrEqual(machine.Spec.MachineClaimRef, machineApply.Spec.MachineClaimRef) ||
 			machine.Spec.Power != *machineApply.Spec.Power {
 			log.Debug(ctx, "Updating Machine")
-			err := r.Patch(ctx, &machine, patch.Apply(machineApply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
+			err := r.Patch(ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("cannot patch Machine: %w", err)
 			}
@@ -173,7 +173,7 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 	if !controllerutil.ContainsFinalizer(claim, MachineClaimFinalizer) ||
 		!util.NilOrEqual(claim.Spec.MachineRef, apply.Spec.MachineRef) {
 		log.Debug(ctx, "Updating")
-		err := r.Patch(ctx, claim, patch.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
+		err := r.Patch(ctx, claim, ssa.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("cannot patch MachineClaim: %w", err)
 		}
@@ -182,7 +182,7 @@ func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1al
 	apply = metalv1alpha1apply.MachineClaim(claim.Name, claim.Namespace).WithStatus(applyStatus)
 	if claim.Status.Phase != *apply.Status.Phase {
 		log.Debug(ctx, "Updating status")
-		err := r.Status().Patch(ctx, claim, patch.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
+		err := r.Status().Patch(ctx, claim, ssa.Apply(apply), client.FieldOwner(MachineClaimFieldOwner), client.ForceOwnership)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("cannot patch MachineClaim status: %w", err)
 		}

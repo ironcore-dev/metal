@@ -8,6 +8,7 @@ require (
 	github.com/golangci/golangci-lint v1.57.2
 	github.com/google/addlicense v1.1.1
 	github.com/google/uuid v1.6.0
+	github.com/ironcore-dev/ipam v0.2.1
 	github.com/ironcore-dev/vgopath v0.1.4
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
@@ -215,6 +216,7 @@ require (
 	go.uber.org/automaxprocs v1.5.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
+	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20240314144324-c7f7c6466f7f // indirect
 	golang.org/x/mod v0.16.0 // indirect

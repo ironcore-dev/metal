@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	ipamv1alpha1 "github.com/ironcore-dev/ipam/api/ipam/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -59,10 +60,16 @@ var _ = BeforeSuite(func() {
 	Expect(metalv1alpha1.AddToScheme(scheme)).To(Succeed())
 	//+kubebuilder:scaffold:scheme
 
+	Expect(kscheme.AddToScheme(scheme)).To(Succeed())
+	Expect(metalv1alpha1.AddToScheme(scheme)).To(Succeed())
+	Expect(ipamv1alpha1.AddToScheme(scheme)).To(Succeed())
+	//+kubebuilder:scaffold:scheme
+
 	testEnv := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
 		CRDDirectoryPaths: []string{
 			filepath.Join("..", "..", "config", "crd", "bases"),
+			filepath.Join("..", "..", "test", "ipam.metal.ironcore.dev_ips.yaml"),
 		},
 	}
 	var cfg *rest.Config
@@ -76,13 +83,15 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 	SetClient(k8sClient)
 
-	ns := v1.Namespace{
+	ns := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "system-",
 		},
 	}
-	Expect(k8sClient.Create(ctx, &ns)).To(Succeed())
-	DeferCleanup(k8sClient.Delete, &ns)
+	Expect(k8sClient.Create(ctx, ns)).To(Succeed())
+	DeferCleanup(func(ctx SpecContext) {
+		Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
+	})
 
 	var mgr manager.Manager
 	mgr, err = ctrl.NewManager(cfg, ctrl.Options{
