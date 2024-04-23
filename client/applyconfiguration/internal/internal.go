@@ -26,6 +26,121 @@ func Parser() *typed.Parser {
 var parserOnce sync.Once
 var parser *typed.Parser
 var schemaYAML = typed.YAMLObject(`types:
+- name: com.github.ironcore-dev.metal.api.v1alpha1.BlockSpec
+  map:
+    fields:
+    - name: model
+      type:
+        scalar: string
+    - name: name
+      type:
+        scalar: string
+    - name: partitionTable
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PartitionTableSpec
+    - name: rotational
+      type:
+        scalar: boolean
+      default: false
+    - name: size
+      type:
+        scalar: numeric
+    - name: system
+      type:
+        scalar: string
+    - name: type
+      type:
+        scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.CPUSpec
+  map:
+    fields:
+    - name: addressSizes
+      type:
+        scalar: string
+    - name: bogoMips
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: bugs
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: cacheAlignment
+      type:
+        scalar: numeric
+    - name: cacheSize
+      type:
+        scalar: string
+    - name: clFlushSize
+      type:
+        scalar: numeric
+    - name: cores
+      type:
+        scalar: numeric
+    - name: cpuIdLevel
+      type:
+        scalar: numeric
+    - name: family
+      type:
+        scalar: string
+    - name: flags
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: fpu
+      type:
+        scalar: boolean
+      default: false
+    - name: fpuException
+      type:
+        scalar: boolean
+      default: false
+    - name: logicalIds
+      type:
+        list:
+          elementType:
+            scalar: numeric
+          elementRelationship: atomic
+    - name: mhz
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: microcode
+      type:
+        scalar: string
+    - name: model
+      type:
+        scalar: string
+    - name: modelName
+      type:
+        scalar: string
+    - name: physicalId
+      type:
+        scalar: numeric
+    - name: powerManagement
+      type:
+        scalar: string
+    - name: siblings
+      type:
+        scalar: numeric
+    - name: stepping
+      type:
+        scalar: string
+    - name: vendorId
+      type:
+        scalar: string
+    - name: vmxFlags
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: wp
+      type:
+        scalar: boolean
+      default: false
 - name: com.github.ironcore-dev.metal.api.v1alpha1.ConsoleProtocol
   map:
     fields:
@@ -37,16 +152,165 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: numeric
       default: 0
-- name: com.github.ironcore-dev.metal.api.v1alpha1.Inventory
-  scalar: untyped
-  list:
-    elementType:
-      namedType: __untyped_atomic_
-    elementRelationship: atomic
+- name: com.github.ironcore-dev.metal.api.v1alpha1.DistroSpec
   map:
-    elementType:
-      namedType: __untyped_deduced_
-    elementRelationship: separable
+    fields:
+    - name: asicType
+      type:
+        scalar: string
+    - name: buildBy
+      type:
+        scalar: string
+    - name: buildDate
+      type:
+        scalar: string
+    - name: buildNumber
+      type:
+        scalar: numeric
+    - name: buildVersion
+      type:
+        scalar: string
+    - name: commitID
+      type:
+        scalar: string
+    - name: debianVersion
+      type:
+        scalar: string
+    - name: kernelVersion
+      type:
+        scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.HostSpec
+  map:
+    fields:
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: com.github.ironcore-dev.metal.api.v1alpha1.IPMISpec
+  map:
+    fields:
+    - name: ipAddress
+      type:
+        scalar: string
+    - name: macAddress
+      type:
+        scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.Inventory
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.InventorySpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.InventoryStatus
+      default: {}
+- name: com.github.ironcore-dev.metal.api.v1alpha1.InventorySpec
+  map:
+    fields:
+    - name: blocks
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.BlockSpec
+          elementRelationship: atomic
+    - name: cpus
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.CPUSpec
+          elementRelationship: atomic
+    - name: distro
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.DistroSpec
+    - name: host
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.HostSpec
+    - name: ipmis
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.IPMISpec
+          elementRelationship: atomic
+    - name: memory
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.MemorySpec
+    - name: nics
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.NICSpec
+          elementRelationship: atomic
+    - name: numa
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.NumaSpec
+          elementRelationship: atomic
+    - name: pciDevices
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceSpec
+          elementRelationship: atomic
+    - name: system
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.SystemSpec
+    - name: virt
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.VirtSpec
+- name: com.github.ironcore-dev.metal.api.v1alpha1.InventoryStatus
+  map:
+    fields:
+    - name: inventoryStatuses
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.InventoryStatuses
+      default: {}
+- name: com.github.ironcore-dev.metal.api.v1alpha1.InventoryStatuses
+  map:
+    fields:
+    - name: ready
+      type:
+        scalar: boolean
+      default: false
+    - name: requestsCount
+      type:
+        scalar: numeric
+- name: com.github.ironcore-dev.metal.api.v1alpha1.LLDPSpec
+  map:
+    fields:
+    - name: capabilities
+      type:
+        list:
+          elementType:
+            scalar: string
+          elementRelationship: atomic
+    - name: chassisId
+      type:
+        scalar: string
+    - name: portDescription
+      type:
+        scalar: string
+    - name: portId
+      type:
+        scalar: string
+    - name: systemDescription
+      type:
+        scalar: string
+    - name: systemName
+      type:
+        scalar: string
 - name: com.github.ironcore-dev.metal.api.v1alpha1.Machine
   map:
     fields:
@@ -215,6 +479,82 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: state
       type:
         scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.MemorySpec
+  map:
+    fields:
+    - name: total
+      type:
+        scalar: numeric
+- name: com.github.ironcore-dev.metal.api.v1alpha1.NDPSpec
+  map:
+    fields:
+    - name: ipAddress
+      type:
+        scalar: string
+    - name: macAddress
+      type:
+        scalar: string
+    - name: state
+      type:
+        scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.NICSpec
+  map:
+    fields:
+    - name: activeFEC
+      type:
+        scalar: string
+    - name: lanes
+      type:
+        scalar: numeric
+    - name: lldps
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.LLDPSpec
+          elementRelationship: atomic
+    - name: macAddress
+      type:
+        scalar: string
+    - name: mtu
+      type:
+        scalar: numeric
+    - name: name
+      type:
+        scalar: string
+    - name: ndps
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.NDPSpec
+          elementRelationship: atomic
+    - name: pciAddress
+      type:
+        scalar: string
+    - name: speed
+      type:
+        scalar: numeric
+- name: com.github.ironcore-dev.metal.api.v1alpha1.NumaSpec
+  map:
+    fields:
+    - name: cpus
+      type:
+        list:
+          elementType:
+            scalar: numeric
+          elementRelationship: atomic
+    - name: distances
+      type:
+        list:
+          elementType:
+            scalar: numeric
+          elementRelationship: atomic
+    - name: id
+      type:
+        scalar: numeric
+      default: 0
+    - name: memory
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.MemorySpec
 - name: com.github.ironcore-dev.metal.api.v1alpha1.OOB
   map:
     fields:
@@ -337,6 +677,71 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: type
       type:
         scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+  map:
+    fields:
+    - name: id
+      type:
+        scalar: string
+      default: ""
+    - name: name
+      type:
+        scalar: string
+      default: ""
+- name: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceSpec
+  map:
+    fields:
+    - name: address
+      type:
+        scalar: string
+    - name: busId
+      type:
+        scalar: string
+    - name: class
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+    - name: interface
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+    - name: subclass
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+    - name: subtype
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+    - name: subvendor
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+    - name: type
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+    - name: vendor
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.PCIDeviceDescriptionSpec
+- name: com.github.ironcore-dev.metal.api.v1alpha1.PartitionSpec
+  map:
+    fields:
+    - name: id
+      type:
+        scalar: string
+    - name: name
+      type:
+        scalar: string
+    - name: size
+      type:
+        scalar: numeric
+- name: com.github.ironcore-dev.metal.api.v1alpha1.PartitionTableSpec
+  map:
+    fields:
+    - name: partitions
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.PartitionSpec
+          elementRelationship: atomic
+    - name: type
+      type:
+        scalar: string
 - name: com.github.ironcore-dev.metal.api.v1alpha1.Prefix
   scalar: untyped
 - name: com.github.ironcore-dev.metal.api.v1alpha1.Protocol
@@ -350,6 +755,27 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: numeric
       default: 0
+- name: com.github.ironcore-dev.metal.api.v1alpha1.SystemSpec
+  map:
+    fields:
+    - name: id
+      type:
+        scalar: string
+    - name: manufacturer
+      type:
+        scalar: string
+    - name: productSku
+      type:
+        scalar: string
+    - name: serialNumber
+      type:
+        scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.VirtSpec
+  map:
+    fields:
+    - name: vmType
+      type:
+        scalar: string
 - name: io.k8s.api.core.v1.LocalObjectReference
   map:
     fields:
@@ -383,6 +809,8 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
     elementRelationship: atomic
+- name: io.k8s.apimachinery.pkg.api.resource.Quantity
+  scalar: untyped
 - name: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
   map:
     fields:

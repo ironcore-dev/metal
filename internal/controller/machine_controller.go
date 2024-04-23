@@ -12,7 +12,7 @@ import (
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
 	"github.com/ironcore-dev/metal/internal/log"
-	"github.com/ironcore-dev/metal/internal/patch"
+	"github.com/ironcore-dev/metal/internal/ssa"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -84,7 +84,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	machineApply := r.reconcile(ctx, &machine)
 	return ctrl.Result{}, r.Status().Patch(
-		ctx, &machine, patch.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+		ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
 }
 
 func (r *MachineReconciler) reconcile(ctx context.Context, machine *metalv1alpha1.Machine) *metalv1alpha1apply.MachineApplyConfiguration {
