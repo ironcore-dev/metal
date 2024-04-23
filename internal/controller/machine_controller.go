@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
@@ -25,8 +26,10 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 
 const (
-	MachineFieldOwner string = "metal.ironcore.dev/machine"
-	MachineFinalizer  string = "metal.ironcore.dev/machine"
+	MachineFieldOwner       string = "metal.ironcore.dev/machine"
+	MachineFinalizer        string = "metal.ironcore.dev/machine"
+	MachineMaintenanceLabel string = "metal.ironcore.dev/maintenance"
+	MachineSizeLabelPrefix  string = "metal.ironcore.dev/size-"
 
 	MachineInitializedConditionType       = "Initialized"
 	MachineInitializedConditionPosReason  = "MachineInitialized"
@@ -45,6 +48,12 @@ const (
 	MachineClassifiedConditionNegReason  = "MachineNotClassified"
 	MachineClassifiedConditionNegMessage = "Machine not classified"
 	MachineClassifiedConditionPosMessage = "Machine classified"
+
+	MachineSanitizedConditionType       = "Sanitized"
+	MachineSanitizedConditionPosReason  = "MachineSanitized"
+	MachineSanitizedConditionNegReason  = "MachineNotSanitized"
+	MachineSanitizedConditionNegMessage = "Machine not sanitized"
+	MachineSanitizedConditionPosMessage = "Machine sanitized"
 
 	MachineReadyConditionType       = "Ready"
 	MachineReadyConditionPosReason  = "MachineReady"
@@ -89,11 +98,13 @@ func (r *MachineReconciler) reconcile(ctx context.Context, machine *metalv1alpha
 		log.Error(ctx, err, "failed to inventorize machine")
 		return machineApply
 	}
-	if err := r.classify(ctx, machineApply); err != nil {
-		log.Error(ctx, err, "failed to classify machine")
+	if err := r.sanitize(ctx, machineApply); err != nil {
+		log.Error(ctx, err, "failed to sanitize machine")
 		return machineApply
 	}
-
+	r.classify(machineApply)
+	r.setReadiness(machineApply)
+	r.setMachineState(machineApply)
 	return machineApply
 }
 
@@ -180,8 +191,181 @@ func (r *MachineReconciler) inventorize(
 	return err
 }
 
-func (r *MachineReconciler) classify(ctx context.Context, machineApply *metalv1alpha1apply.MachineApplyConfiguration) error {
+func (r *MachineReconciler) classify(machineApply *metalv1alpha1apply.MachineApplyConfiguration) {
+	// note: size label should be set by size controller
+	applyStatus := machineApply.Status
+	idx := slices.IndexFunc(applyStatus.Conditions, func(c metav1.Condition) bool {
+		return c.Type == MachineClassifiedConditionType
+	})
+	baseCondition := applyStatus.Conditions[idx]
+	condition := baseCondition.DeepCopy()
+	classified := false
+	for lbl := range machineApply.Labels {
+		if strings.HasPrefix(lbl, MachineSizeLabelPrefix) {
+			classified = true
+			break
+		}
+	}
+	if classified {
+		condition.Status = metav1.ConditionTrue
+		condition.Reason = MachineClassifiedConditionPosReason
+		condition.Message = MachineClassifiedConditionPosMessage
+	}
+	if baseCondition.Status != condition.Status {
+		condition.LastTransitionTime = metav1.Now()
+		condition.ObservedGeneration = *machineApply.Generation
+	}
+	applyStatus.Conditions[idx] = *condition
+	machineApply = machineApply.WithStatus(applyStatus)
+}
+
+func (r *MachineReconciler) sanitize(
+	_ context.Context,
+	machineApply *metalv1alpha1apply.MachineApplyConfiguration,
+) error {
+	applyStatus := machineApply.Status
+	idx := slices.IndexFunc(applyStatus.Conditions, func(c metav1.Condition) bool {
+		return c.Type == MachineSanitizedConditionType
+	})
+	baseCondition := applyStatus.Conditions[idx]
+	condition := baseCondition.DeepCopy()
+
+	if condition.Status == metav1.ConditionFalse {
+		// todo: sanitize logic
+	}
+
+	condition.Status = metav1.ConditionTrue
+	condition.Reason = MachineSanitizedConditionPosReason
+	condition.Message = MachineSanitizedConditionPosMessage
+	if baseCondition.Status != condition.Status {
+		condition.LastTransitionTime = metav1.Now()
+		condition.ObservedGeneration = *machineApply.Generation
+	}
+	applyStatus.Conditions[idx] = *condition
+	machineApply = machineApply.WithStatus(applyStatus)
 	return nil
+}
+
+func (r *MachineReconciler) setReadiness(machineApply *metalv1alpha1apply.MachineApplyConfiguration) {
+	applyStatus := machineApply.Status
+	idx := slices.IndexFunc(applyStatus.Conditions, func(c metav1.Condition) bool {
+		return c.Type == MachineReadyConditionType
+	})
+	baseCondition := applyStatus.Conditions[idx]
+	condition := baseCondition.DeepCopy()
+
+	initialized := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineInitializedConditionType && condition.Status == metav1.ConditionTrue
+	})
+	inventoried := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineInventoriedConditionType && condition.Status == metav1.ConditionTrue
+	})
+	classified := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineClassifiedConditionType && condition.Status == metav1.ConditionTrue
+	})
+	sanitized := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineSanitizedConditionType && condition.Status == metav1.ConditionTrue
+	})
+
+	if initialized && inventoried && classified && sanitized {
+		condition.Status = metav1.ConditionTrue
+		condition.Reason = MachineReadyConditionPosReason
+		condition.Message = MachineReadyConditionPosMessage
+	} else {
+		condition.Status = metav1.ConditionFalse
+		condition.Reason = MachineReadyConditionNegReason
+		condition.Message = MachineReadyConditionNegMessage
+	}
+	if baseCondition.Status != condition.Status {
+		condition.LastTransitionTime = metav1.Now()
+		condition.ObservedGeneration = *machineApply.Generation
+	}
+	applyStatus.Conditions[idx] = *condition
+	machineApply = machineApply.WithStatus(applyStatus)
+}
+
+func (r *MachineReconciler) setMachineState(machineApply *metalv1alpha1apply.MachineApplyConfiguration) {
+	applyStatus := machineApply.Status
+	_, maintenance := machineApply.Labels[MachineMaintenanceLabel]
+	if maintenance {
+		applyStatus = applyStatus.WithState(metalv1alpha1.MachineStateMaintenance)
+		machineApply = machineApply.WithStatus(applyStatus)
+		return
+	}
+
+	var state metalv1alpha1.MachineState
+	idx := slices.IndexFunc(applyStatus.Conditions, func(c metav1.Condition) bool {
+		return c.Type == MachineReadyConditionType
+	})
+	if applyStatus.Conditions[idx].Status == metav1.ConditionFalse {
+		return
+	}
+
+	switch {
+	case machineApply.Spec.MachineClaimRef == nil && *applyStatus.State == metalv1alpha1.MachineStateInitial:
+		r.setStateAvailable(machineApply)
+	case machineApply.Spec.MachineClaimRef != nil && *applyStatus.State == metalv1alpha1.MachineStateAvailable:
+		r.setStateReserved(machineApply)
+	case machineApply.Spec.MachineClaimRef == nil && *applyStatus.State == metalv1alpha1.MachineStateReserved:
+		r.setStateTainted(machineApply)
+	case machineApply.Spec.MachineClaimRef == nil && *applyStatus.State == metalv1alpha1.MachineStateTainted:
+		r.setStateAvailable(machineApply)
+	}
+	applyStatus = applyStatus.WithState(state)
+	machineApply = machineApply.WithStatus(applyStatus)
+}
+
+func (r *MachineReconciler) setStateAvailable(machineApply *metalv1alpha1apply.MachineApplyConfiguration) {
+	applyStatus := machineApply.Status
+	sanitized := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineSanitizedConditionType && condition.Status == metav1.ConditionTrue
+	})
+	ready := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineReadyConditionType && condition.Status == metav1.ConditionTrue
+	})
+	if sanitized && ready {
+		applyStatus = applyStatus.WithState(metalv1alpha1.MachineStateAvailable)
+		machineApply = machineApply.WithStatus(applyStatus)
+	}
+}
+
+func (r *MachineReconciler) setStateReserved(machineApply *metalv1alpha1apply.MachineApplyConfiguration) {
+	applyStatus := machineApply.Status
+	sanitized := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineSanitizedConditionType && condition.Status == metav1.ConditionTrue
+	})
+	ready := slices.ContainsFunc(applyStatus.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineReadyConditionType && condition.Status == metav1.ConditionTrue
+	})
+	if sanitized && ready {
+		applyStatus = applyStatus.WithState(metalv1alpha1.MachineStateReserved)
+		machineApply = machineApply.WithStatus(applyStatus)
+	}
+}
+
+func (r *MachineReconciler) setStateTainted(machineApply *metalv1alpha1apply.MachineApplyConfiguration) {
+	var idx int
+	applyStatus := machineApply.Status
+	idx = slices.IndexFunc(applyStatus.Conditions, func(c metav1.Condition) bool {
+		return c.Type == MachineSanitizedConditionType
+	})
+	applyStatus.Conditions[idx].Status = metav1.ConditionFalse
+	applyStatus.Conditions[idx].LastTransitionTime = metav1.Now()
+	applyStatus.Conditions[idx].ObservedGeneration = *machineApply.Generation
+	applyStatus.Conditions[idx].Reason = MachineSanitizedConditionNegReason
+	applyStatus.Conditions[idx].Message = MachineSanitizedConditionNegMessage
+
+	idx = slices.IndexFunc(applyStatus.Conditions, func(c metav1.Condition) bool {
+		return c.Type == MachineReadyConditionType
+	})
+	applyStatus.Conditions[idx].Status = metav1.ConditionFalse
+	applyStatus.Conditions[idx].LastTransitionTime = metav1.Now()
+	applyStatus.Conditions[idx].ObservedGeneration = *machineApply.Generation
+	applyStatus.Conditions[idx].Reason = MachineReadyConditionNegReason
+	applyStatus.Conditions[idx].Message = MachineReadyConditionNegMessage
+
+	applyStatus = applyStatus.WithState(metalv1alpha1.MachineStateTainted)
+	machineApply = machineApply.WithStatus(applyStatus)
 }
 
 func (r *MachineReconciler) fillConditions(machineApply *metalv1alpha1apply.MachineApplyConfiguration) {
@@ -220,6 +404,18 @@ func (r *MachineReconciler) fillConditions(machineApply *metalv1alpha1apply.Mach
 			LastTransitionTime: metav1.Now(),
 			Reason:             MachineClassifiedConditionNegReason,
 			Message:            MachineClassifiedConditionNegMessage,
+		})
+	}
+	if idx := slices.IndexFunc(statusApply.Conditions, func(condition metav1.Condition) bool {
+		return condition.Type == MachineSanitizedConditionType
+	}); idx < 0 {
+		statusApply = statusApply.WithConditions(metav1.Condition{
+			Type:               MachineSanitizedConditionType,
+			Status:             metav1.ConditionFalse,
+			ObservedGeneration: *machineApply.Generation,
+			LastTransitionTime: metav1.Now(),
+			Reason:             MachineSanitizedConditionNegReason,
+			Message:            MachineSanitizedConditionNegMessage,
 		})
 	}
 	if idx := slices.IndexFunc(statusApply.Conditions, func(condition metav1.Condition) bool {
