@@ -14,6 +14,7 @@ rules:
   - list
   - patch
   - update
+  - watch
 - apiGroups:
   - ipam.metal.ironcore.dev
   resources:
@@ -21,6 +22,8 @@ rules:
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - ipam.metal.ironcore.dev
