@@ -78,7 +78,7 @@ type OOBStatus struct {
 	// +optional
 	FirmwareVersion string `json:"firmwareVersion,omitempty"`
 
-	// +kubebuilder:validation:Enum=Ready;Unready;Ignored;Error
+	// +kubebuilder:validation:Enum=Ready;Unready;Ignored;Unknown;Error
 	// +optional
 	State OOBState `json:"state,omitempty"`
 
@@ -102,14 +102,17 @@ const (
 	OOBStateReady   OOBState = "Ready"
 	OOBStateUnready OOBState = "Unready"
 	OOBStateIgnored OOBState = "Ignored"
+	OOBStateUnknown OOBState = "Unknown"
 	OOBStateError   OOBState = "Error"
 )
 
 const (
 	OOBConditionTypeReady        = "Ready"
+	OOBConditionReasonReady      = "Ready"
 	OOBConditionReasonInProgress = "InProgress"
 	OOBConditionReasonNoEndpoint = "NoEndpoint"
 	OOBConditionReasonIgnored    = "Ignored"
+	OOBConditionReasonUnknown    = "Unknown"
 	OOBConditionReasonError      = "Error"
 )
 

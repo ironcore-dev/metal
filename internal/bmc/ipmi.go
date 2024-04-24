@@ -24,7 +24,7 @@ func init() {
 	registerBMC(ipmiBMC)
 }
 
-func ipmiBMC(tags map[string]string, host string, port int, creds Credentials, exp time.Time) BMC {
+func ipmiBMC(tags map[string]string, host string, port int32, creds Credentials, exp time.Time) BMC {
 	return &IPMIBMC{
 		tags:  tags,
 		host:  host,
@@ -46,7 +46,7 @@ func (b *IPMIBMC) PowerControl() PowerControl {
 	return b
 }
 
-func (b *IPMIBMC) ResetControl() ResetControl {
+func (b *IPMIBMC) RestartControl() RestartControl {
 	return b
 }
 
@@ -57,7 +57,7 @@ func (b *IPMIBMC) Credentials() (Credentials, time.Time) {
 type IPMIBMC struct {
 	tags  map[string]string
 	host  string
-	port  int
+	port  int32
 	creds Credentials
 	exp   time.Time
 }
@@ -107,7 +107,7 @@ func outputmapspace(ml string, mi *map[string]string) {
 	}
 }
 
-func ipmiFindWorkingCredentials(ctx context.Context, host string, port int, defaultCreds []Credentials, tempPassword string) (Credentials, error) {
+func ipmiFindWorkingCredentials(ctx context.Context, host string, port int32, defaultCreds []Credentials, tempPassword string) (Credentials, error) {
 	if len(defaultCreds) == 0 {
 		return Credentials{}, fmt.Errorf("no default credentials to try")
 	}
@@ -197,14 +197,14 @@ func (b *IPMIBMC) ReadInfo(ctx context.Context) (Info, error) {
 		SerialNumber: serial,
 		SKU:          sku,
 		Manufacturer: manufacturer,
-		LocatorLED:   led,
-		Power:        cases.Title(language.English).String(powerstate),
+		LocatorLED:   LED(led),
+		Power:        Power(cases.Title(language.English).String(powerstate)),
 		Console:      "ipmi",
 		FWVersion:    fw,
 	}, nil
 }
 
-func ipmiGenerateCommand(ctx context.Context, host string, port int, creds Credentials, cmd ...string) ([]string, error) {
+func ipmiGenerateCommand(ctx context.Context, host string, port int32, creds Credentials, cmd ...string) ([]string, error) {
 	if port == 0 {
 		port = 623
 	}
@@ -214,7 +214,7 @@ func ipmiGenerateCommand(ctx context.Context, host string, port int, creds Crede
 	params := cmd[1:]
 	log.Debug(ctx, "Executing IPMI command", "host", host, "command", actualCmd)
 	if actualCmd == "ipmitool" {
-		command = append(command, "/usr/bin/ipmitool", "-I", "lanplus", "-H", host, "-U", creds.Username, "-P", creds.Password, "-p", strconv.Itoa(port))
+		command = append(command, "/usr/bin/ipmitool", "-I", "lanplus", "-H", host, "-U", creds.Username, "-P", creds.Password, "-p", strconv.FormatInt(int64(port), 10))
 		command = append(command, params...)
 	} else if actualCmd == "ipmi-chassis" || actualCmd == "ipmi-config" {
 		// TODO: check how to provide custom port
@@ -227,7 +227,7 @@ func ipmiGenerateCommand(ctx context.Context, host string, port int, creds Crede
 	return command, nil
 }
 
-func ipmiExecuteCommand(ctx context.Context, host string, port int, creds Credentials, cmd ...string) (string, string, error) {
+func ipmiExecuteCommand(ctx context.Context, host string, port int32, creds Credentials, cmd ...string) (string, string, error) {
 	command, err := ipmiGenerateCommand(ctx, host, port, creds, cmd...)
 	if err != nil {
 		return "", "", err
@@ -253,7 +253,7 @@ func ipmiExecuteCommand(ctx context.Context, host string, port int, creds Creden
 	return stdout.String(), stderr.String(), nil
 }
 
-func ipmiping(ctx context.Context, host string, port int, creds Credentials) error {
+func ipmiping(ctx context.Context, host string, port int32, creds Credentials) error {
 	// TODO: figure out a better way to test credentials
 	_, _, err := ipmiExecuteCommand(ctx, host, port, creds, "ipmitool", "lan", "print", "1")
 	if err != nil {
@@ -262,7 +262,7 @@ func ipmiping(ctx context.Context, host string, port int, creds Credentials) err
 	return nil
 }
 
-func ipmigetusers(ctx context.Context, host string, port int, creds Credentials) ([]IPMIUser, error) {
+func ipmigetusers(ctx context.Context, host string, port int32, creds Credentials) ([]IPMIUser, error) {
 	users := make([]IPMIUser, 0)
 	// TODO: determine amount of max slots before iterating
 	for i := 2; i <= 12; i++ {
@@ -299,7 +299,7 @@ func ipmigetusers(ctx context.Context, host string, port int, creds Credentials)
 	return users, nil
 }
 
-func ipmiGetFreeSlot(ctx context.Context, host string, port int, creds Credentials) (string, error) {
+func ipmiGetFreeSlot(ctx context.Context, host string, port int32, creds Credentials) (string, error) {
 	users, err := ipmigetusers(ctx, host, port, creds)
 	if err != nil {
 		return "", fmt.Errorf("cannot determine an empty slot: %w", err)
@@ -372,7 +372,7 @@ func (b *IPMIBMC) PowerOn(ctx context.Context) error {
 	return nil
 }
 
-func (b *IPMIBMC) Reset(ctx context.Context, immediate bool) error {
+func (b *IPMIBMC) Restart(ctx context.Context, immediate bool) error {
 	//TODO: figure out a way of doing a graceful restart via IPMI
 	if !immediate {
 		return fmt.Errorf("unable to reset the server gracefully")

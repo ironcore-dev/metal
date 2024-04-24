@@ -20,7 +20,7 @@ type MachineSpecApplyConfiguration struct {
 	LoopbackAddressRef *v1.LocalObjectReference `json:"loopbackAddressRef,omitempty"`
 	ASN                *string                  `json:"asn,omitempty"`
 	Power              *v1alpha1.Power          `json:"power,omitempty"`
-	LocatorLED         *v1alpha1.LocatorLED     `json:"locatorLED,omitempty"`
+	LocatorLED         *v1alpha1.LED            `json:"locatorLED,omitempty"`
 }
 
 // MachineSpecApplyConfiguration constructs an declarative configuration of the MachineSpec type for use with
@@ -88,7 +88,7 @@ func (b *MachineSpecApplyConfiguration) WithPower(value v1alpha1.Power) *Machine
 // WithLocatorLED sets the LocatorLED field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the LocatorLED field is set to the value of the last call.
-func (b *MachineSpecApplyConfiguration) WithLocatorLED(value v1alpha1.LocatorLED) *MachineSpecApplyConfiguration {
+func (b *MachineSpecApplyConfiguration) WithLocatorLED(value v1alpha1.LED) *MachineSpecApplyConfiguration {
 	b.LocatorLED = &value
 	return b
 }

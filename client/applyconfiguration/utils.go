@@ -40,8 +40,6 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.OOBSecretApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OOBSecretSpec"):
 		return &apiv1alpha1.OOBSecretSpecApplyConfiguration{}
-	case v1alpha1.SchemeGroupVersion.WithKind("OOBSecretStatus"):
-		return &apiv1alpha1.OOBSecretStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OOBSpec"):
 		return &apiv1alpha1.OOBSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("OOBStatus"):

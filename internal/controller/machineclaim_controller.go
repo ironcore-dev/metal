@@ -75,7 +75,7 @@ func (r *MachineClaimReconciler) finalize(ctx context.Context, claim *metalv1alp
 	var apply *metalv1alpha1apply.MachineClaimApplyConfiguration
 	apply, err = metalv1alpha1apply.ExtractMachineClaim(claim, MachineClaimFieldManager)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot extract MachineClaim: %w", err)
 	}
 	apply.Finalizers = util.Clear(apply.Finalizers, MachineClaimFinalizer)
 	err = r.Patch(ctx, claim, ssa.Apply(apply), client.FieldOwner(MachineClaimFieldManager), client.ForceOwnership)
@@ -115,7 +115,7 @@ func (r *MachineClaimReconciler) finalizeMachine(ctx context.Context, claim *met
 	var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 	machineApply, err = metalv1alpha1apply.ExtractMachine(&machine, MachineClaimFieldManager)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot extract Machine: %w", err)
 	}
 	machineApply.Finalizers = util.Clear(machineApply.Finalizers, MachineClaimFinalizer)
 	machineApply.Spec = nil
@@ -130,38 +130,52 @@ func (r *MachineClaimReconciler) finalizeMachine(ctx context.Context, claim *met
 func (r *MachineClaimReconciler) reconcile(ctx context.Context, claim *metalv1alpha1.MachineClaim) (ctrl.Result, error) {
 	log.Debug(ctx, "Reconciling")
 
-	var ok bool
+	var advance bool
 	var err error
 
-	ctx, ok, err = r.applyOrContinue(log.WithValues(ctx, "phase", "InitialState"), claim, r.processInitialState)
-	if !ok {
-		if err == nil {
-			log.Debug(ctx, "Reconciled successfully")
-		}
+	ctx, advance, err = r.runPhase(ctx, claim, machineClaimRecPhase{
+		name: "Initial",
+		run:  r.processInitial,
+	})
+	if !advance {
 		return ctrl.Result{}, err
 	}
 
-	ctx, ok, err = r.applyOrContinue(log.WithValues(ctx, "phase", "Machine"), claim, r.processMachine)
-	if !ok {
-		if err == nil {
-			log.Debug(ctx, "Reconciled successfully")
-		}
+	ctx, advance, err = r.runPhase(ctx, claim, machineClaimRecPhase{
+		name: "Machine",
+		run:  r.processMachine,
+	})
+	if !advance {
 		return ctrl.Result{}, err
 	}
 
-	ctx = log.WithValues(ctx, "phase", "all")
+	ctx, advance, err = r.runPhase(ctx, claim, machineClaimRecPhase{
+		name: "Ready",
+	})
+	if !advance {
+		return ctrl.Result{}, err
+	}
+
 	log.Debug(ctx, "Reconciled successfully")
 	return ctrl.Result{}, nil
 }
 
-type nachineClaimProcessFunc func(context.Context, *metalv1alpha1.MachineClaim) (context.Context, *metalv1alpha1apply.MachineClaimApplyConfiguration, *metalv1alpha1apply.MachineClaimStatusApplyConfiguration, error)
+type machineClaimRecPhase struct {
+	name string
+	run  func(context.Context, *metalv1alpha1.MachineClaim) (context.Context, *metalv1alpha1apply.MachineClaimApplyConfiguration, *metalv1alpha1apply.MachineClaimStatusApplyConfiguration, error)
+}
 
-func (r *MachineClaimReconciler) applyOrContinue(ctx context.Context, claim *metalv1alpha1.MachineClaim, pfunc nachineClaimProcessFunc) (context.Context, bool, error) {
+func (r *MachineClaimReconciler) runPhase(ctx context.Context, claim *metalv1alpha1.MachineClaim, phase machineClaimRecPhase) (context.Context, bool, error) {
+	ctx = log.WithValues(ctx, "phase", phase.name)
 	var apply *metalv1alpha1apply.MachineClaimApplyConfiguration
 	var status *metalv1alpha1apply.MachineClaimStatusApplyConfiguration
 	var err error
 
-	ctx, apply, status, err = pfunc(ctx, claim)
+	if phase.run == nil {
+		return ctx, true, nil
+	}
+
+	ctx, apply, status, err = phase.run(ctx, claim)
 	if err != nil {
 		return ctx, false, err
 	}
@@ -184,10 +198,14 @@ func (r *MachineClaimReconciler) applyOrContinue(ctx context.Context, claim *met
 		}
 	}
 
-	return ctx, apply == nil, err
+	advance := apply == nil
+	if !advance {
+		log.Debug(ctx, "Reconciled successfully")
+	}
+	return ctx, advance, nil
 }
 
-func (r *MachineClaimReconciler) processInitialState(ctx context.Context, claim *metalv1alpha1.MachineClaim) (context.Context, *metalv1alpha1apply.MachineClaimApplyConfiguration, *metalv1alpha1apply.MachineClaimStatusApplyConfiguration, error) {
+func (r *MachineClaimReconciler) processInitial(ctx context.Context, claim *metalv1alpha1.MachineClaim) (context.Context, *metalv1alpha1apply.MachineClaimApplyConfiguration, *metalv1alpha1apply.MachineClaimStatusApplyConfiguration, error) {
 	var apply *metalv1alpha1apply.MachineClaimApplyConfiguration
 	var status *metalv1alpha1apply.MachineClaimStatusApplyConfiguration
 	var err error
@@ -195,7 +213,7 @@ func (r *MachineClaimReconciler) processInitialState(ctx context.Context, claim 
 	if !controllerutil.ContainsFinalizer(claim, MachineClaimFinalizer) {
 		apply, err = metalv1alpha1apply.ExtractMachineClaim(claim, MachineClaimFieldManager)
 		if err != nil {
-			return ctx, nil, nil, err
+			return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim: %w", err)
 		}
 		apply.Finalizers = util.Set(apply.Finalizers, MachineClaimFinalizer)
 	}
@@ -204,7 +222,7 @@ func (r *MachineClaimReconciler) processInitialState(ctx context.Context, claim 
 		var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 		applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 		if err != nil {
-			return ctx, nil, nil, err
+			return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim status: %w", err)
 		}
 		status = util.Ensure(applyst.Status).
 			WithPhase(metalv1alpha1.MachineClaimPhaseUnbound)
@@ -232,7 +250,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 
 			apply, err = metalv1alpha1apply.ExtractMachineClaim(claim, MachineClaimFieldManager)
 			if err != nil {
-				return ctx, nil, nil, err
+				return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim: %w", err)
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec))
 			apply.Spec.MachineRef = nil
@@ -263,7 +281,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractMachineClaim(claim, MachineClaimFieldManager)
 				if err != nil {
-					return ctx, nil, nil, err
+					return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim: %w", err)
 				}
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
@@ -277,7 +295,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 				var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 				applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 				if err != nil {
-					return ctx, nil, nil, err
+					return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim status: %w", err)
 				}
 				status = util.Ensure(applyst.Status).
 					WithPhase(phase)
@@ -298,7 +316,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 		var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 		machineApply, err = metalv1alpha1apply.ExtractMachine(&machine, MachineClaimFieldManager)
 		if err != nil {
-			return ctx, nil, nil, err
+			return ctx, nil, nil, fmt.Errorf("cannot extract Machine: %w", err)
 		}
 		machineApply.Finalizers = util.Clear(machineApply.Finalizers, MachineClaimFinalizer)
 		machineApply = nil
@@ -312,7 +330,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 			var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 			applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 			if err != nil {
-				return ctx, nil, nil, err
+				return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim status: %w", err)
 			}
 			status = util.Ensure(applyst.Status).
 				WithPhase(phase)
@@ -328,7 +346,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 		var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 		machineApply, err = metalv1alpha1apply.ExtractMachine(&machine, MachineClaimFieldManager)
 		if err != nil {
-			return ctx, nil, nil, err
+			return ctx, nil, nil, fmt.Errorf("cannot extract Machine: %w", err)
 		}
 		machineApply.Finalizers = util.Set(machineApply.Finalizers, MachineClaimFinalizer)
 		machineApply = machineApply.WithSpec(util.Ensure(machineApply.Spec).
@@ -345,7 +363,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 		var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 		applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 		if err != nil {
-			return ctx, nil, nil, err
+			return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim status: %w", err)
 		}
 		status = util.Ensure(applyst.Status).
 			WithPhase(phase)
@@ -360,33 +378,31 @@ func (r *MachineClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.MachineClaim{}).
-		Watches(&metalv1alpha1.Machine{}, r.enqueueMachineClaimsFromMachine()).
+		Watches(&metalv1alpha1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.enqueueMachineClaimsFromMachine)).
 		Complete(r)
 }
 
-func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine() handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-		machine := obj.(*metalv1alpha1.Machine)
+func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine(ctx context.Context, obj client.Object) []reconcile.Request {
+	machine := obj.(*metalv1alpha1.Machine)
 
-		claimList := metalv1alpha1.MachineClaimList{}
-		err := r.List(ctx, &claimList, client.MatchingFields{MachineClaimSpecMachineRef: machine.Name})
-		if err != nil {
-			log.Error(ctx, fmt.Errorf("cannot list MachineClaims: %w", err))
-			return nil
+	claimList := metalv1alpha1.MachineClaimList{}
+	err := r.List(ctx, &claimList, client.MatchingFields{MachineClaimSpecMachineRef: machine.Name})
+	if err != nil {
+		log.Error(ctx, fmt.Errorf("cannot list MachineClaims: %w", err))
+		return nil
+	}
+
+	reqs := make([]reconcile.Request, 0, len(claimList.Items))
+	for _, c := range claimList.Items {
+		if c.DeletionTimestamp != nil {
+			continue
 		}
 
-		var reqs []reconcile.Request
-		for _, c := range claimList.Items {
-			if c.DeletionTimestamp != nil {
-				continue
-			}
-
-			// TODO: Also watch for machines matching the label selector.
-			reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: c.Namespace,
-				Name:      c.Name,
-			}})
-		}
-		return reqs
-	})
+		// TODO: Also watch for machines matching the label selector.
+		reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{
+			Namespace: c.Namespace,
+			Name:      c.Name,
+		}})
+	}
+	return reqs
 }

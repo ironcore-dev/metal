@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"regexp"
 	"time"
-
-	"github.com/ironcore-dev/metal/internal/log"
 )
 
 type BMC interface {
@@ -21,38 +19,6 @@ type BMC interface {
 	CreateUser(ctx context.Context, creds Credentials, tempPassword string) error
 	DeleteUsers(ctx context.Context, regex *regexp.Regexp) error
 	ReadInfo(ctx context.Context) (Info, error)
-}
-
-type LEDControl interface {
-	SetLocatorLED(ctx context.Context, state string) (string, error)
-}
-
-type PowerControl interface {
-	PowerOn(ctx context.Context) error
-	PowerOff(ctx context.Context, immediate bool) error
-}
-
-type ResetControl interface {
-	Reset(ctx context.Context, immediate bool) error
-}
-
-type newBMCFunc func(tags map[string]string, host string, port int, creds Credentials, exp time.Time) BMC
-
-var (
-	bmcs = make(map[string]newBMCFunc)
-)
-
-func registerBMC(newFunc newBMCFunc) {
-	bmcs[newFunc(nil, "", 0, Credentials{}, time.Time{}).Type()] = newFunc
-}
-
-func NewBMC(typ string, tags map[string]string, host string, port int, creds Credentials, exp time.Time) (BMC, error) {
-	newFunc, ok := bmcs[typ]
-	if !ok {
-		return nil, fmt.Errorf("BMC of type %s is not supported", typ)
-	}
-
-	return newFunc(tags, host, port, creds, exp), nil
 }
 
 type Credentials struct {
@@ -67,16 +33,57 @@ type Info struct {
 	SerialNumber string
 	SKU          string
 	Manufacturer string
-	LocatorLED   string
-	Power        string
+	LocatorLED   LED
+	Power        Power
 	OS           string
 	OSReason     string
 	Console      string
 	FWVersion    string
 }
 
-func must(ctx context.Context, err error) {
-	if err != nil {
-		log.Error(ctx, fmt.Errorf("impossible error (this should never happen lol): %w", err))
+type LEDControl interface {
+	SetLocatorLED(ctx context.Context, state LED) (LED, error)
+}
+
+type LED string
+
+const (
+	LEDOn       LED = "On"
+	LEDOff      LED = "Off"
+	LEDBlinking LED = "Blinking"
+)
+
+type PowerControl interface {
+	PowerOn(ctx context.Context) error
+	PowerOff(ctx context.Context, force bool) error
+}
+
+type Power string
+
+const (
+	PowerOn  Power = "On"
+	PowerOff Power = "Off"
+)
+
+type RestartControl interface {
+	Restart(ctx context.Context, force bool) error
+}
+
+func NewBMC(typ string, tags map[string]string, host string, port int32, creds Credentials, exp time.Time) (BMC, error) {
+	newFunc, ok := bmcs[typ]
+	if !ok {
+		return nil, fmt.Errorf("BMC of type %s is not supported", typ)
 	}
+
+	return newFunc(tags, host, port, creds, exp), nil
+}
+
+var (
+	bmcs = make(map[string]newBMCFunc)
+)
+
+type newBMCFunc func(tags map[string]string, host string, port int32, creds Credentials, exp time.Time) BMC
+
+func registerBMC(newFunc newBMCFunc) {
+	bmcs[newFunc(nil, "", 0, Credentials{}, time.Time{}).Type()] = newFunc
 }

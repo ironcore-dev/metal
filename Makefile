@@ -82,17 +82,17 @@ docker-push: ## Push docker image with the manager.
 
 .PHONY: install
 install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	go run sigs.k8s.io/kustomize/kustomize/v5 build config/crd | kubectl apply -f -
+	@go run sigs.k8s.io/kustomize/kustomize/v5 build config/crd | kubectl apply -f -
 
 .PHONY: uninstall
 uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	go run sigs.k8s.io/kustomize/kustomize/v5 build config/crd | kubectl delete --ignore-not-found=true -f -
+	@go run sigs.k8s.io/kustomize/kustomize/v5 build config/crd | kubectl delete --ignore-not-found=true -f -
 
 .PHONY: deploy
 deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && go run sigs.k8s.io/kustomize/kustomize/v5 edit set image controller=${IMG}
-	go run sigs.k8s.io/kustomize/kustomize/v5 build config/default | kubectl apply -f -
+	@cd config/manager && go run sigs.k8s.io/kustomize/kustomize/v5 edit set image controller=${IMG}
+	@go run sigs.k8s.io/kustomize/kustomize/v5 build config/default | kubectl apply -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	go run sigs.k8s.io/kustomize/kustomize/v5 build config/default | kubectl delete --ignore-not-found=true -f -
+	@go run sigs.k8s.io/kustomize/kustomize/v5 build config/default | kubectl delete --ignore-not-found=true -f -

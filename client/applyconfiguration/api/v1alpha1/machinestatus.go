@@ -17,7 +17,7 @@ type MachineStatusApplyConfiguration struct {
 	SKU               *string                                     `json:"sku,omitempty"`
 	SerialNumber      *string                                     `json:"serialNumber,omitempty"`
 	Power             *v1alpha1.Power                             `json:"power,omitempty"`
-	LocatorLED        *v1alpha1.LocatorLED                        `json:"locatorLED,omitempty"`
+	LocatorLED        *v1alpha1.LED                               `json:"locatorLED,omitempty"`
 	ShutdownDeadline  *v1.Time                                    `json:"shutdownDeadline,omitempty"`
 	NetworkInterfaces []MachineNetworkInterfaceApplyConfiguration `json:"networkInterfaces,omitempty"`
 	State             *v1alpha1.MachineState                      `json:"state,omitempty"`
@@ -65,7 +65,7 @@ func (b *MachineStatusApplyConfiguration) WithPower(value v1alpha1.Power) *Machi
 // WithLocatorLED sets the LocatorLED field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the LocatorLED field is set to the value of the last call.
-func (b *MachineStatusApplyConfiguration) WithLocatorLED(value v1alpha1.LocatorLED) *MachineStatusApplyConfiguration {
+func (b *MachineStatusApplyConfiguration) WithLocatorLED(value v1alpha1.LED) *MachineStatusApplyConfiguration {
 	b.LocatorLED = &value
 	return b
 }

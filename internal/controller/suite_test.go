@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
+	"github.com/ironcore-dev/metal/internal/bmc"
 	"github.com/ironcore-dev/metal/internal/log"
 	//+kubebuilder:scaffold:imports
 )
@@ -60,6 +61,8 @@ var _ = BeforeSuite(func() {
 	Expect(metalv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(ipamv1alpha1.AddToScheme(scheme)).To(Succeed())
 	//+kubebuilder:scaffold:scheme
+
+	bmc.RegisterFake()
 
 	testEnv := &envtest.Environment{
 		ErrorIfCRDPathMissing: true,
@@ -123,16 +126,10 @@ var _ = BeforeSuite(func() {
 	Expect(machineClaimReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	var oobReconciler *OOBReconciler
-	oobReconciler, err = NewOOBReconciler(ns.Name, "", "", "metal-", "bmc-temporary-password")
+	oobReconciler, err = NewOOBReconciler(ns.Name, "", "../../test/macdb.yaml", time.Hour, "metal-", "bmc-temporary-password")
 	Expect(err).NotTo(HaveOccurred())
 	Expect(oobReconciler).NotTo(BeNil())
 	Expect(oobReconciler.SetupWithManager(mgr)).To(Succeed())
-
-	var oobSecretReconciler *OOBSecretReconciler
-	oobSecretReconciler, err = NewOOBSecretReconciler()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(oobSecretReconciler).NotTo(BeNil())
-	Expect(oobSecretReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	mgrCtx, mgrCancel := context.WithCancel(ctx)
 	DeferCleanup(mgrCancel)

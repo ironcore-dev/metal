@@ -19,8 +19,8 @@ import (
 type OOBSecretApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
 	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Spec                             *OOBSecretSpecApplyConfiguration   `json:"spec,omitempty"`
-	Status                           *OOBSecretStatusApplyConfiguration `json:"status,omitempty"`
+	Spec                             *OOBSecretSpecApplyConfiguration `json:"spec,omitempty"`
+	Status                           *apiv1alpha1.OOBSecretStatus     `json:"status,omitempty"`
 }
 
 // OOBSecret constructs an declarative configuration of the OOBSecret type for use with
@@ -239,7 +239,7 @@ func (b *OOBSecretApplyConfiguration) WithSpec(value *OOBSecretSpecApplyConfigur
 // WithStatus sets the Status field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Status field is set to the value of the last call.
-func (b *OOBSecretApplyConfiguration) WithStatus(value *OOBSecretStatusApplyConfiguration) *OOBSecretApplyConfiguration {
-	b.Status = value
+func (b *OOBSecretApplyConfiguration) WithStatus(value apiv1alpha1.OOBSecretStatus) *OOBSecretApplyConfiguration {
+	b.Status = &value
 	return b
 }

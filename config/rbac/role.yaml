@@ -9,8 +9,11 @@ rules:
   resources:
   - secrets
   verbs:
+  - create
   - get
   - list
+  - patch
+  - update
 - apiGroups:
   - ipam.metal.ironcore.dev
   resources:
@@ -109,7 +112,6 @@ rules:
   - oobsecrets
   verbs:
   - create
-  - delete
   - get
   - list
   - patch

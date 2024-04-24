@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/ironcore-dev/ipam/api/ipam/v1alpha1"
@@ -49,9 +50,9 @@ type params struct {
 	enableOOBController          bool
 	oobIpLabelSelector           string
 	oobMacDB                     string
+	oobCredsRenewalBeforeExpiry  time.Duration
 	oobUsernamePrefix            string
 	oobTemporaryPasswordSecret   string
-	enableOOBSecretController    bool
 }
 
 func parseCmdLine() params {
@@ -72,9 +73,9 @@ func parseCmdLine() params {
 	pflag.Bool("enable-oob-controller", true, "Enable the OOB controller.")
 	pflag.String("oob-ip-label-selector", "", "OOB: Filter IP objects by labels.")
 	pflag.String("oob-mac-db", "", "OOB: Load MAC DB from file.")
+	pflag.Duration("oob-creds-renewal-before-expiry", time.Hour*24*7, "OOB: Renew expiring credentials this long before they expire.")
 	pflag.String("oob-username-prefix", "metal-", "OOB: Use a prefix when creating BMC users. Cannot be empty.")
 	pflag.String("oob-temporary-password-secret", "bmc-temporary-password", "OOB: Secret to store a temporary password in. Will be generated if it does not exist.")
-	pflag.Bool("enable-oobsecret-controller", true, "Enable the OOBSecret controller.")
 
 	var help bool
 	pflag.BoolVarP(&help, "help", "h", false, "Show this help message.")
@@ -106,9 +107,9 @@ func parseCmdLine() params {
 		enableOOBController:          viper.GetBool("enable-oob-controller"),
 		oobIpLabelSelector:           viper.GetString("oob-ip-label-selector"),
 		oobMacDB:                     viper.GetString("oob-mac-db"),
+		oobCredsRenewalBeforeExpiry:  viper.GetDuration("oob-creds-renewal-before-expiry"),
 		oobUsernamePrefix:            viper.GetString("oob-username-prefix"),
 		oobTemporaryPasswordSecret:   viper.GetString("oob-temporary-password-secret"),
-		enableOOBSecretController:    viper.GetBool("enable-oobsecret-controller"),
 	}
 }
 
@@ -259,7 +260,7 @@ func main() {
 
 	if p.enableOOBController {
 		var oobReconciler *controller.OOBReconciler
-		oobReconciler, err = controller.NewOOBReconciler(p.systemNamespace, p.oobIpLabelSelector, p.oobMacDB, p.oobUsernamePrefix, p.oobTemporaryPasswordSecret)
+		oobReconciler, err = controller.NewOOBReconciler(p.systemNamespace, p.oobIpLabelSelector, p.oobMacDB, p.oobCredsRenewalBeforeExpiry, p.oobUsernamePrefix, p.oobTemporaryPasswordSecret)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
 			exitCode = 1
@@ -269,23 +270,6 @@ func main() {
 		err = oobReconciler.SetupWithManager(mgr)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
-			exitCode = 1
-			return
-		}
-	}
-
-	if p.enableOOBSecretController {
-		var oobSecretReconciler *controller.OOBSecretReconciler
-		oobSecretReconciler, err = controller.NewOOBSecretReconciler()
-		if err != nil {
-			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOBSecret")
-			exitCode = 1
-			return
-		}
-
-		err = oobSecretReconciler.SetupWithManager(mgr)
-		if err != nil {
-			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOBSecret")
 			exitCode = 1
 			return
 		}
