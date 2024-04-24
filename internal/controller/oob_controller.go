@@ -44,9 +44,10 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobsecrets,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobsecrets/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobsecrets/finalizers,verbs=update
-// +kubebuilder:rbac:groups=ipam.metal.ironcore.dev,resources=ips,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ipam.metal.ironcore.dev,resources=ips,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=ipam.metal.ironcore.dev,resources=ips/status,verbs=get
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;create;update;patch
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=oobs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch
 
 const (
 	OOBFieldManager         = "metal.ironcore.dev/oob"
