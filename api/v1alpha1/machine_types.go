@@ -39,7 +39,7 @@ type MachineSpec struct {
 
 	// +kubebuilder:validation:Enum=On;Off;Blinking
 	// +optional
-	LocatorLED LocatorLED `json:"locatorLED,omitempty"`
+	LocatorLED LED `json:"locatorLED,omitempty"`
 }
 
 type Power string
@@ -49,12 +49,12 @@ const (
 	PowerOff Power = "Off"
 )
 
-type LocatorLED string
+type LED string
 
 const (
-	LocatorLEDOn       Power = "On"
-	LocatorLEDOff      Power = "Off"
-	LocatorLEDBlinking Power = "Blinking"
+	LEDOn       LED = "On"
+	LEDOff      LED = "Off"
+	LEDBlinking LED = "Blinking"
 )
 
 // MachineStatus defines the observed state of Machine
@@ -74,7 +74,7 @@ type MachineStatus struct {
 
 	// +kubebuilder:validation:Enum=On;Off;Blinking
 	// +optional
-	LocatorLED LocatorLED `json:"locatorLED,omitempty"`
+	LocatorLED LED `json:"locatorLED,omitempty"`
 
 	// +optional
 	ShutdownDeadline *metav1.Time `json:"shutdownDeadline,omitempty"`

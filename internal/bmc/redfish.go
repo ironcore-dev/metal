@@ -29,7 +29,7 @@ func init() {
 	registerBMC(redfishBMC)
 }
 
-func redfishBMC(tags map[string]string, host string, port int, creds Credentials, exp time.Time) BMC {
+func redfishBMC(tags map[string]string, host string, port int32, creds Credentials, exp time.Time) BMC {
 	return &RedfishBMC{
 		tags:  tags,
 		host:  host,
@@ -42,7 +42,7 @@ func redfishBMC(tags map[string]string, host string, port int, creds Credentials
 type RedfishBMC struct {
 	tags  map[string]string
 	host  string
-	port  int
+	port  int32
 	creds Credentials
 	exp   time.Time
 }
@@ -63,7 +63,7 @@ func (b *RedfishBMC) PowerControl() PowerControl {
 	return b
 }
 
-func (b *RedfishBMC) ResetControl() ResetControl {
+func (b *RedfishBMC) RestartControl() RestartControl {
 	return b
 }
 
@@ -98,14 +98,14 @@ type redfishUserOEM struct {
 	} `json:"Hp,omitempty"`
 }
 
-func redfishConnect(ctx context.Context, host string, port int, creds Credentials) (*gofish.APIClient, error) {
+func redfishConnect(ctx context.Context, host string, port int32, creds Credentials) (*gofish.APIClient, error) {
 	log.Debug(ctx, "Connecting", "host", host, "user", creds.Username)
 
 	if port == 0 {
 		port = 443
 	}
 
-	hostAndPort := net.JoinHostPort(host, strconv.Itoa(port))
+	hostAndPort := net.JoinHostPort(host, strconv.FormatInt(int64(port), 10))
 	config := gofish.ClientConfig{
 		Endpoint: fmt.Sprintf("https://%s", hostAndPort),
 		Username: creds.Username,
@@ -131,7 +131,7 @@ func redfishGetUserIdFromError(rerr *common.Error) string {
 	return ""
 }
 
-func redfishFindWorkingCredentials(ctx context.Context, host string, port int, defaultCreds []Credentials, tempPassword string) (Credentials, string, error) {
+func redfishFindWorkingCredentials(ctx context.Context, host string, port int32, defaultCreds []Credentials, tempPassword string) (Credentials, string, error) {
 	if len(defaultCreds) == 0 {
 		return Credentials{}, "", fmt.Errorf("no default credentials to try")
 	}
@@ -168,7 +168,7 @@ func redfishFindWorkingCredentials(ctx context.Context, host string, port int, d
 	return Credentials{}, "", fmt.Errorf("cannot connect using any predefined credentials: %w", merr)
 }
 
-func redfishChangePasswordRaw(ctx context.Context, host string, port int, id, user, oldPassword, newPassword string) error {
+func redfishChangePasswordRaw(ctx context.Context, host string, port int32, id, user, oldPassword, newPassword string) error {
 	if port == 0 {
 		port = 443
 	}
@@ -254,7 +254,7 @@ func redfishGetUserID(accounts []*redfish.ManagerAccount, user string) string {
 	return ""
 }
 
-func redfishWaitForUser(ctx context.Context, c *gofish.APIClient, host string, port int, creds Credentials, id string) (string, error) {
+func redfishWaitForUser(ctx context.Context, c *gofish.APIClient, host string, port int32, creds Credentials, id string) (string, error) {
 	var sCreds []Credentials
 	sCreds = append(sCreds, creds)
 
@@ -413,7 +413,7 @@ func redfishCreateUserPatch(ctx context.Context, c *gofish.APIClient, slot strin
 //	return fmt.Errorf("user %s does not exist", user)
 //}
 
-func redfishGetPasswordExpirationRaw(ctx context.Context, host string, port int, creds Credentials, id string) (time.Time, error) {
+func redfishGetPasswordExpirationRaw(ctx context.Context, host string, port int32, creds Credentials, id string) (time.Time, error) {
 	c, err := redfishConnect(ctx, host, port, creds)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot connect: %w", err)
@@ -615,17 +615,7 @@ func (b *RedfishBMC) ReadInfo(ctx context.Context) (Info, error) {
 	}
 	uuid = strings.ToLower(uuid)
 
-	var led string
-	switch led = string(systems[0].IndicatorLED); led {
-	case "Blinking":
-		led = "Blinking"
-	case "Lit":
-		led = "On"
-	case "Off":
-		led = "Off"
-	default:
-		led = ""
-	}
+	led := LED(systems[0].IndicatorLED)
 
 	// Reading the OS state is supported only on Lenovo hardware
 	var os, osReason string
@@ -692,7 +682,7 @@ func (b *RedfishBMC) ReadInfo(ctx context.Context) (Info, error) {
 		SKU:          systems[0].SKU,
 		Manufacturer: manufacturer,
 		LocatorLED:   led,
-		Power:        fmt.Sprintf("%v", systems[0].PowerState),
+		Power:        Power(fmt.Sprintf("%v", systems[0].PowerState)),
 		OS:           os,
 		OSReason:     osReason,
 		Console:      console,
@@ -709,7 +699,7 @@ func isConsoleTypeSupported(consoleList []redfish.SerialConnectTypesSupported, c
 	return false
 }
 
-func (b *RedfishBMC) SetLocatorLED(ctx context.Context, state string) (string, error) {
+func (b *RedfishBMC) SetLocatorLED(ctx context.Context, state LED) (LED, error) {
 	c, err := redfishConnect(ctx, b.host, b.port, b.creds)
 	if err != nil {
 		return "", fmt.Errorf("cannot connect: %w", err)
@@ -726,11 +716,11 @@ func (b *RedfishBMC) SetLocatorLED(ctx context.Context, state string) (string, e
 
 	var ledState common.IndicatorLED
 	switch state {
-	case "On":
+	case LEDOn:
 		ledState = common.LitIndicatorLED
-	case "Blinking":
+	case LEDBlinking:
 		ledState = common.BlinkingIndicatorLED
-	case "Off":
+	case LEDOff:
 		ledState = common.OffIndicatorLED
 	default:
 		return "", fmt.Errorf("unable to set LED state to unknown")
@@ -769,7 +759,7 @@ func (b *RedfishBMC) PowerOn(ctx context.Context) error {
 	return nil
 }
 
-func (b *RedfishBMC) Reset(ctx context.Context, immediate bool) error {
+func (b *RedfishBMC) Restart(ctx context.Context, immediate bool) error {
 	c, err := redfishConnect(ctx, b.host, b.port, b.creds)
 	if err != nil {
 		return fmt.Errorf("cannot connect: %w", err)
@@ -854,4 +844,10 @@ func (b *RedfishBMC) DeleteUsers(ctx context.Context, regex *regexp.Regexp) erro
 		}
 	}
 	return nil
+}
+
+func must(ctx context.Context, err error) {
+	if err != nil {
+		log.Error(ctx, fmt.Errorf("impossible error (this should never happen lol): %w", err))
+	}
 }

@@ -31,7 +31,7 @@ resources:
   version: v1alpha1
 - api:
     crdVersion: v1
-  controller: true
+  controller: false
   domain: ironcore.dev
   group: metal
   kind: OOBSecret

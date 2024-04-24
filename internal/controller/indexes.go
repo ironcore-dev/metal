@@ -38,5 +38,16 @@ func CreateIndexes(ctx context.Context, mgr manager.Manager) error {
 		return fmt.Errorf("cannot index field %s: %w", OOBSpecMACAddress, err)
 	}
 
+	err = indexer.IndexField(ctx, &metalv1alpha1.OOBSecret{}, OOBSecretSpecMACAddress, func(obj client.Object) []string {
+		secret := obj.(*metalv1alpha1.OOBSecret)
+		if secret.Spec.MACAddress == "" {
+			return nil
+		}
+		return []string{secret.Spec.MACAddress}
+	})
+	if err != nil {
+		return fmt.Errorf("cannot index field %s: %w", OOBSecretSpecMACAddress, err)
+	}
+
 	return nil
 }

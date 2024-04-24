@@ -267,15 +267,16 @@ var schemaYAML = typed.YAMLObject(`types:
       default: ""
 - name: com.github.ironcore-dev.metal.api.v1alpha1.OOBSecretStatus
   map:
-    fields:
-    - name: conditions
-      type:
-        list:
-          elementType:
-            namedType: io.k8s.apimachinery.pkg.apis.meta.v1.Condition
-          elementRelationship: associative
-          keys:
-          - type
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
 - name: com.github.ironcore-dev.metal.api.v1alpha1.OOBSpec
   map:
     fields:

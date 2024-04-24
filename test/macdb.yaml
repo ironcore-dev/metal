@@ -1,0 +1,7 @@
+macs:
+- prefix: aabbccddeeff
+  protocol:
+    name: Redfish
+  defaultCredentials:
+  - username: admin
+    password: admin

@@ -210,6 +210,7 @@ spec:
                 - Ready
                 - Unready
                 - Ignored
+                - Unknown
                 - Error
                 type: string
               type:
