@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -60,7 +61,7 @@ func parseCmdLine() params {
 	pflag.ErrHelp = nil
 	pflag.CommandLine = pflag.NewFlagSet(os.Args[0], pflag.ContinueOnError)
 
-	pflag.Bool("dev", false, "Log human-readable messages at debug level.")
+	pflag.Bool("dev", false, "Run in development mode.")
 	pflag.Bool("leader-elect", false, "Enable leader election to ensure there is only one active controller manager.")
 	pflag.String("health-probe-bind-address", "", "The address that the health probe server binds to.")
 	pflag.String("metrics-bind-address", "0", "The address that the metrics server binds to.")
@@ -193,6 +194,10 @@ func main() {
 		})
 	}
 
+	maxConcurrentReconciles := 11
+	if p.dev {
+		maxConcurrentReconciles = 1
+	}
 	var mgr manager.Manager
 	mgr, err = ctrl.NewManager(kcfg, ctrl.Options{
 		Scheme:           scheme,
@@ -209,6 +214,9 @@ func main() {
 		}),
 		BaseContext: func() context.Context {
 			return ctx
+		},
+		Controller: config.Controller{
+			MaxConcurrentReconciles: maxConcurrentReconciles,
 		},
 	})
 	if err != nil {
