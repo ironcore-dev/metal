@@ -17,7 +17,7 @@ require (
 	github.com/sethvargo/go-password v0.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2
-	github.com/stmcginnis/gofish v0.15.0
+	github.com/stmcginnis/gofish v0.17.0
 	golang.org/x/text v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.29.4
