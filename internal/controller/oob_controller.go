@@ -6,6 +6,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
 	"slices"
@@ -657,7 +658,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			})
 		}
 
-		if a.Ignore {
+		if a.Ignore && !metav1.HasAnnotation(oob.ObjectMeta, OOBIgnoreAnnotation) {
 			if apply == nil {
 				var err error
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
@@ -676,18 +677,21 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		oob.Spec.Flags = a.Flags
 		defaultCreds = a.DefaultCredentials
 
-		if apply == nil {
-			var err error
-			apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
-			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+		if !util.NilOrEqual(oob.Spec.Protocol, &a.Protocol) ||
+			!maps.Equal(oob.Spec.Flags, a.Flags) {
+			if apply == nil {
+				var err error
+				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
+				if err != nil {
+					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+				}
 			}
+			apply = apply.WithSpec(util.Ensure(apply.Spec).
+				WithProtocol(metalv1alpha1apply.Protocol().
+					WithName(oob.Spec.Protocol.Name).
+					WithPort(oob.Spec.Protocol.Port)).
+				WithFlags(oob.Spec.Flags))
 		}
-		apply = apply.WithSpec(util.Ensure(apply.Spec).
-			WithProtocol(metalv1alpha1apply.Protocol().
-				WithName(oob.Spec.Protocol.Name).
-				WithPort(oob.Spec.Protocol.Port)).
-			WithFlags(oob.Spec.Flags))
 	}
 
 	b, err := bmc.NewBMC(string(oob.Spec.Protocol.Name), oob.Spec.Flags, ctx.Value(ctxkOOBHost{}).(string), oob.Spec.Protocol.Port, creds, expiration)
