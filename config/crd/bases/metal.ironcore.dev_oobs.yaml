@@ -208,9 +208,9 @@ spec:
               state:
                 enum:
                 - Ready
-                - Unready
+                - InProgress
+                - NoEndpoint
                 - Ignored
-                - Unknown
                 - Error
                 type: string
               type:

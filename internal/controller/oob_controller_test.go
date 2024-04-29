@@ -186,7 +186,7 @@ var _ = Describe("OOB Controller", func() {
 		By("Expecting the OOB to have no endpoint")
 		Eventually(Object(oob)).Should(SatisfyAll(
 			HaveField("Spec.EndpointRef", BeNil()),
-			HaveField("Status.State", metalv1alpha1.OOBStateUnready),
+			HaveField("Status.State", metalv1alpha1.OOBStateNoEndpoint),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonNoEndpoint)),
 		))
 
@@ -368,7 +368,7 @@ var _ = Describe("OOB Controller", func() {
 		))
 	})
 
-	It("should set the OOB to unknown if the MAC is unknown", func(ctx SpecContext) {
+	It("should not create an oob if the MAC is unknown", func(ctx SpecContext) {
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
@@ -399,16 +399,9 @@ var _ = Describe("OOB Controller", func() {
 				Name: ip.Labels[OOBIPMacLabel],
 			},
 		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-		})
 
-		By("Expecting OOB to be unknown")
-		Eventually(Object(oob)).Should(SatisfyAll(
-			HaveField("Status.State", metalv1alpha1.OOBStateUnknown),
-			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonUnknown)),
-		))
+		By("Expecting OOB not to exist")
+		Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
 	})
 
 	It("should handle a bad credentials secret", func(ctx SpecContext) {
