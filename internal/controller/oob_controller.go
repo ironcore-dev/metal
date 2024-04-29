@@ -282,10 +282,9 @@ func (r *OOBReconciler) reconcile(ctx context.Context, oob *metalv1alpha1.OOB) (
 	}
 
 	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name:         "Credentials",
-		run:          r.processCredentials,
-		errType:      OOBErrorBadCredentials,
-		readyReasons: []string{metalv1alpha1.OOBConditionReasonUnknown},
+		name:    "Credentials",
+		run:     r.processCredentials,
+		errType: OOBErrorBadCredentials,
 	})
 	if !advance {
 		return ctrl.Result{}, err
@@ -400,7 +399,7 @@ func (r *OOBReconciler) processIgnoreAnnotation(ctx context.Context, oob *metalv
 			Reason: metalv1alpha1.OOBConditionReasonIgnored,
 		})
 	} else if oob.Status.State == metalv1alpha1.OOBStateIgnored {
-		return r.setCondition(ctx, oob, nil, nil, metalv1alpha1.OOBStateUnready, metav1.Condition{
+		return r.setCondition(ctx, oob, nil, nil, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 			Type:   metalv1alpha1.OOBConditionTypeReady,
 			Status: metav1.ConditionFalse,
 			Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -426,7 +425,7 @@ func (r *OOBReconciler) processInitial(ctx context.Context, oob *metalv1alpha1.O
 
 	_, ok := ssa.GetCondition(oob.Status.Conditions, metalv1alpha1.OOBConditionTypeReady)
 	if oob.Status.State == "" || !ok {
-		return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateUnready, metav1.Condition{
+		return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 			Type:   metalv1alpha1.OOBConditionTypeReady,
 			Status: metav1.ConditionFalse,
 			Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -511,7 +510,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
 				WithEndpointRef(*oob.Spec.EndpointRef))
 
-			ctx, apply, status, err = r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateUnready, metav1.Condition{
+			ctx, apply, status, err = r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -523,7 +522,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 			break
 		}
 		if !found {
-			return r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateUnready, metav1.Condition{
+			return r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateNoEndpoint, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonNoEndpoint,
@@ -555,7 +554,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 	if oob.Status.State == metalv1alpha1.OOBStateError {
 		cond, _ := ssa.GetCondition(oob.Status.Conditions, metalv1alpha1.OOBConditionTypeReady)
 		if strings.HasPrefix(cond.Message, OOBErrorBadEndpoint+": ") {
-			return r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateUnready, metav1.Condition{
+			return r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -640,7 +639,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
 				WithSecretRef(*oob.Spec.SecretRef))
 
-			return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateUnready, metav1.Condition{
+			return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -651,11 +650,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 	if oob.Spec.Protocol == nil || (creds.Username == "" && creds.Password == "") {
 		a, ok := r.macDB.Get(oob.Spec.MACAddress)
 		if !ok {
-			return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateUnknown, metav1.Condition{
-				Type:   metalv1alpha1.OOBConditionTypeReady,
-				Status: metav1.ConditionFalse,
-				Reason: metalv1alpha1.OOBConditionReasonUnknown,
-			})
+			return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, fmt.Errorf("cannot find MAC address in MAC DB: %s", oob.Spec.MACAddress))
 		}
 
 		if a.Ignore && !metav1.HasAnnotation(oob.ObjectMeta, OOBIgnoreAnnotation) {
@@ -804,7 +799,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 	if oob.Status.State == metalv1alpha1.OOBStateError {
 		cond, _ := ssa.GetCondition(oob.Status.Conditions, metalv1alpha1.OOBConditionTypeReady)
 		if strings.HasPrefix(cond.Message, OOBErrorBadCredentials+": ") {
-			return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateUnready, metav1.Condition{
+			return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -880,18 +875,21 @@ func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object)
 	}
 
 	if len(oobList.Items) == 0 && ip.Status.State == ipamv1alpha1.CFinishedIPState && ip.Status.Reserved != nil {
-		oob := metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: mac,
-			},
-		}
-		apply := metalv1alpha1apply.OOB(oob.Name, oob.Namespace).
-			WithFinalizers(OOBFinalizer).
-			WithSpec(metalv1alpha1apply.OOBSpec().
-				WithMACAddress(mac))
-		err = r.Patch(ctx, &oob, ssa.Apply(apply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
-		if err != nil {
-			log.Error(ctx, fmt.Errorf("cannot apply OOB: %w", err))
+		_, ok = r.macDB.Get(mac)
+		if ok {
+			oob := metalv1alpha1.OOB{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: mac,
+				},
+			}
+			apply := metalv1alpha1apply.OOB(oob.Name, oob.Namespace).
+				WithFinalizers(OOBFinalizer).
+				WithSpec(metalv1alpha1apply.OOBSpec().
+					WithMACAddress(mac))
+			err = r.Patch(ctx, &oob, ssa.Apply(apply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
+			if err != nil {
+				log.Error(ctx, fmt.Errorf("cannot apply OOB: %w", err))
+			}
 		}
 	}
 
