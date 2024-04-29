@@ -36,9 +36,9 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 	@go run sigs.k8s.io/controller-tools/cmd/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: manifests fmt vet ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	@go run sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".reuse/boilerplate.go.txt" paths="./..."
+generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	@internal/tools/generate.sh
+	@go run sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".reuse/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -67,7 +67,7 @@ checklicense: ## Check that every file has a license header present.
 ##@ Build
 
 .PHONY: build
-build: generate ## Build manager binary.
+build: generate manifests fmt vet ## Build manager binary.
 	@go build -o metal cmd/main.go
 
 .PHONY: docker-build

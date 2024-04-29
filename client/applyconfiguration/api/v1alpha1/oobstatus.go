@@ -7,18 +7,18 @@ package v1alpha1
 
 import (
 	v1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 // OOBStatusApplyConfiguration represents an declarative configuration of the OOBStatus type for use
 // with apply.
 type OOBStatusApplyConfiguration struct {
-	Type            *v1alpha1.OOBType  `json:"type,omitempty"`
-	Manufacturer    *string            `json:"manufacturer,omitempty"`
-	SerialNumber    *string            `json:"serialNumber,omitempty"`
-	FirmwareVersion *string            `json:"firmwareVersion,omitempty"`
-	State           *v1alpha1.OOBState `json:"state,omitempty"`
-	Conditions      []v1.Condition     `json:"conditions,omitempty"`
+	Type            *v1alpha1.OOBType                `json:"type,omitempty"`
+	Manufacturer    *string                          `json:"manufacturer,omitempty"`
+	SerialNumber    *string                          `json:"serialNumber,omitempty"`
+	FirmwareVersion *string                          `json:"firmwareVersion,omitempty"`
+	State           *v1alpha1.OOBState               `json:"state,omitempty"`
+	Conditions      []v1.ConditionApplyConfiguration `json:"conditions,omitempty"`
 }
 
 // OOBStatusApplyConfiguration constructs an declarative configuration of the OOBStatus type for use with
@@ -70,9 +70,12 @@ func (b *OOBStatusApplyConfiguration) WithState(value v1alpha1.OOBState) *OOBSta
 // WithConditions adds the given value to the Conditions field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Conditions field.
-func (b *OOBStatusApplyConfiguration) WithConditions(values ...v1.Condition) *OOBStatusApplyConfiguration {
+func (b *OOBStatusApplyConfiguration) WithConditions(values ...*v1.ConditionApplyConfiguration) *OOBStatusApplyConfiguration {
 	for i := range values {
-		b.Conditions = append(b.Conditions, values[i])
+		if values[i] == nil {
+			panic("nil value passed to WithConditions")
+		}
+		b.Conditions = append(b.Conditions, *values[i])
 	}
 	return b
 }

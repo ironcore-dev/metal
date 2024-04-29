@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	v1apply "k8s.io/client-go/applyconfigurations/core/v1"
+	metav1apply "k8s.io/client-go/applyconfigurations/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -424,7 +425,16 @@ func (r *OOBReconciler) setCondition(ctx context.Context, oob *metalv1alpha1.OOB
 			status = util.Ensure(applyst.Status)
 		}
 		status = status.WithState(state)
-		status.Conditions = conds
+		status.Conditions = nil
+		for _, c := range conds {
+			ac := metav1apply.Condition().
+				WithType(c.Type).
+				WithStatus(c.Status).
+				WithLastTransitionTime(c.LastTransitionTime).
+				WithReason(c.Reason).
+				WithMessage(c.Message)
+			status = status.WithConditions(ac)
+		}
 	}
 	return ctx, apply, status, nil
 }
@@ -1016,17 +1026,17 @@ func (r *OOBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	err = c.Watch(source.Kind(mgr.GetCache(), &ipamv1alpha1.IP{}), handler.EnqueueRequestsFromMapFunc(r.enqueueOOBFromIP))
+	err = c.Watch(source.Kind(mgr.GetCache(), &ipamv1alpha1.IP{}, handler.TypedEnqueueRequestsFromMapFunc(r.enqueueOOBFromIP)))
 	if err != nil {
 		return err
 	}
 
-	err = c.Watch(source.Kind(mgr.GetCache(), &metalv1alpha1.OOBSecret{}), handler.EnqueueRequestsFromMapFunc(r.enqueueOOBFromOOBSecret))
+	err = c.Watch(source.Kind(mgr.GetCache(), &metalv1alpha1.OOBSecret{}, handler.TypedEnqueueRequestsFromMapFunc(r.enqueueOOBFromOOBSecret)))
 	if err != nil {
 		return err
 	}
 
-	err = c.Watch(source.Kind(mgr.GetCache(), &metalv1alpha1.Machine{}), handler.EnqueueRequestsFromMapFunc(r.enqueueOOBFromMachine))
+	err = c.Watch(source.Kind(mgr.GetCache(), &metalv1alpha1.Machine{}, handler.TypedEnqueueRequestsFromMapFunc(r.enqueueOOBFromMachine)))
 	if err != nil {
 		return err
 	}
@@ -1034,9 +1044,7 @@ func (r *OOBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return mgr.Add(c)
 }
 
-func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object) []reconcile.Request {
-	ip := obj.(*ipamv1alpha1.IP)
-
+func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, ip *ipamv1alpha1.IP) []reconcile.Request {
 	if ip.Namespace != OOBTemporaryNamespaceHack {
 		return nil
 	}
@@ -1128,9 +1136,7 @@ func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object)
 	return reqs
 }
 
-func (r *OOBReconciler) enqueueOOBFromOOBSecret(ctx context.Context, obj client.Object) []reconcile.Request {
-	secret := obj.(*metalv1alpha1.OOBSecret)
-
+func (r *OOBReconciler) enqueueOOBFromOOBSecret(ctx context.Context, secret *metalv1alpha1.OOBSecret) []reconcile.Request {
 	var oobList metalv1alpha1.OOBList
 	err := r.List(ctx, &oobList, client.MatchingFields{
 		OOBSpecMACAddress: secret.Spec.MACAddress,
@@ -1154,9 +1160,7 @@ func (r *OOBReconciler) enqueueOOBFromOOBSecret(ctx context.Context, obj client.
 	return reqs
 }
 
-func (r *OOBReconciler) enqueueOOBFromMachine(_ context.Context, obj client.Object) []reconcile.Request {
-	machine := obj.(*metalv1alpha1.Machine)
-
+func (r *OOBReconciler) enqueueOOBFromMachine(_ context.Context, machine *metalv1alpha1.Machine) []reconcile.Request {
 	return []reconcile.Request{
 		{
 			NamespacedName: types.NamespacedName{

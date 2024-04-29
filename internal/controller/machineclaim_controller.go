@@ -15,9 +15,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
+	"github.com/ironcore-dev/metal/internal/cru"
 	"github.com/ironcore-dev/metal/internal/log"
 	"github.com/ironcore-dev/metal/internal/ssa"
 	"github.com/ironcore-dev/metal/internal/util"
@@ -383,15 +385,20 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 func (r *MachineClaimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.Client = mgr.GetClient()
 
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&metalv1alpha1.MachineClaim{}).
-		Watches(&metalv1alpha1.Machine{}, handler.EnqueueRequestsFromMapFunc(r.enqueueMachineClaimsFromMachine)).
-		Complete(r)
+	c, err := cru.CreateController(mgr, &metalv1alpha1.MachineClaim{}, r)
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(source.Kind(mgr.GetCache(), &metalv1alpha1.Machine{}, handler.TypedEnqueueRequestsFromMapFunc(r.enqueueMachineClaimsFromMachine)))
+	if err != nil {
+		return err
+	}
+
+	return mgr.Add(c)
 }
 
-func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine(ctx context.Context, obj client.Object) []reconcile.Request {
-	machine := obj.(*metalv1alpha1.Machine)
-
+func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine(ctx context.Context, machine *metalv1alpha1.Machine) []reconcile.Request {
 	claimList := metalv1alpha1.MachineClaimList{}
 	err := r.List(ctx, &claimList, client.MatchingFields{
 		MachineClaimSpecMachineRefName: machine.Name,

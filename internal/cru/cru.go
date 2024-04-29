@@ -63,7 +63,7 @@ func CreateController(mgr ctrl.Manager, obj client.Object, reconciler reconcile.
 		return nil, err
 	}
 
-	err = c.Watch(source.Kind(mgr.GetCache(), obj), &handler.EnqueueRequestForObject{})
+	err = c.Watch(source.Kind(mgr.GetCache(), obj, &handler.EnqueueRequestForObject{}))
 	if err != nil {
 		return nil, err
 	}
