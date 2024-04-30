@@ -27,18 +27,21 @@ type Credentials struct {
 }
 
 type Info struct {
+	Type            string
+	Manufacturer    string
+	SerialNumber    string
+	FirmwareVersion string
+	Console         string
+	Machines        []Machine
+}
+
+type Machine struct {
 	UUID         string
-	Type         string
-	Capabilities []string
-	SerialNumber string
-	SKU          string
 	Manufacturer string
-	LocatorLED   LED
+	SKU          string
+	SerialNumber string
 	Power        Power
-	OS           string
-	OSReason     string
-	Console      string
-	FWVersion    string
+	LocatorLED   LED
 }
 
 type Typ string
