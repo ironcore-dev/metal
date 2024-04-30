@@ -199,17 +199,14 @@ func (r *MachineReconciler) classify(machineApply *metalv1alpha1apply.MachineApp
 	})
 	baseCondition := applyStatus.Conditions[idx]
 	condition := baseCondition.DeepCopy()
-	classified := false
 	for lbl := range machineApply.Labels {
-		if strings.HasPrefix(lbl, MachineSizeLabelPrefix) {
-			classified = true
-			break
+		if !strings.HasPrefix(lbl, MachineSizeLabelPrefix) {
+			continue
 		}
-	}
-	if classified {
 		condition.Status = metav1.ConditionTrue
 		condition.Reason = MachineClassifiedConditionPosReason
 		condition.Message = MachineClassifiedConditionPosMessage
+		break
 	}
 	if baseCondition.Status != condition.Status {
 		condition.LastTransitionTime = metav1.Now()
@@ -230,7 +227,7 @@ func (r *MachineReconciler) sanitize(
 	baseCondition := applyStatus.Conditions[idx]
 	condition := baseCondition.DeepCopy()
 
-	if condition.Status == metav1.ConditionFalse {
+	if *applyStatus.State == metalv1alpha1.MachineStateTainted {
 		// todo: sanitize logic
 	}
 
@@ -304,7 +301,8 @@ func (r *MachineReconciler) setMachineState(machineApply *metalv1alpha1apply.Mac
 	switch {
 	case machineApply.Spec.MachineClaimRef == nil && *applyStatus.State == metalv1alpha1.MachineStateInitial:
 		r.setStateAvailable(machineApply)
-	case machineApply.Spec.MachineClaimRef != nil && *applyStatus.State == metalv1alpha1.MachineStateAvailable:
+	case machineApply.Spec.MachineClaimRef != nil && *applyStatus.State == metalv1alpha1.MachineStateInitial,
+		machineApply.Spec.MachineClaimRef != nil && *applyStatus.State == metalv1alpha1.MachineStateAvailable:
 		r.setStateReserved(machineApply)
 	case machineApply.Spec.MachineClaimRef == nil && *applyStatus.State == metalv1alpha1.MachineStateReserved:
 		r.setStateTainted(machineApply)
