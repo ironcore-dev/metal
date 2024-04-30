@@ -12,7 +12,7 @@ require (
 	github.com/ironcore-dev/ipam v0.2.1
 	github.com/ironcore-dev/vgopath v0.1.4
 	github.com/onsi/ginkgo/v2 v2.17.2
-	github.com/onsi/gomega v1.33.0
+	github.com/onsi/gomega v1.33.1
 	github.com/rs/zerolog v1.32.0
 	github.com/sethvargo/go-password v0.3.0
 	github.com/spf13/pflag v1.0.5
