@@ -15,7 +15,6 @@ import (
 type OOBStatusApplyConfiguration struct {
 	Type            *v1alpha1.OOBType  `json:"type,omitempty"`
 	Manufacturer    *string            `json:"manufacturer,omitempty"`
-	SKU             *string            `json:"sku,omitempty"`
 	SerialNumber    *string            `json:"serialNumber,omitempty"`
 	FirmwareVersion *string            `json:"firmwareVersion,omitempty"`
 	State           *v1alpha1.OOBState `json:"state,omitempty"`
@@ -41,14 +40,6 @@ func (b *OOBStatusApplyConfiguration) WithType(value v1alpha1.OOBType) *OOBStatu
 // If called multiple times, the Manufacturer field is set to the value of the last call.
 func (b *OOBStatusApplyConfiguration) WithManufacturer(value string) *OOBStatusApplyConfiguration {
 	b.Manufacturer = &value
-	return b
-}
-
-// WithSKU sets the SKU field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the SKU field is set to the value of the last call.
-func (b *OOBStatusApplyConfiguration) WithSKU(value string) *OOBStatusApplyConfiguration {
-	b.SKU = &value
 	return b
 }
 

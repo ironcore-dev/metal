@@ -1149,12 +1149,6 @@ func schema_ironcore_dev_metal_api_v1alpha1_OOBStatus(ref common.ReferenceCallba
 							Format: "",
 						},
 					},
-					"sku": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
 					"serialNumber": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},

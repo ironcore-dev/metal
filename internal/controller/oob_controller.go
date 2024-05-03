@@ -6,7 +6,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"maps"
 	"os"
 	"regexp"
 	"slices"
@@ -55,6 +54,7 @@ const (
 	OOBFinalizer            = "metal.ironcore.dev/oob"
 	OOBIPMacLabel           = "mac"
 	OOBIgnoreAnnotation     = "metal.ironcore.dev/oob-ignore"
+	OOBUnknownAnnotation    = "metal.ironcore.dev/oob-unknown"
 	OOBMacRegex             = `^[0-9A-Fa-f]{12}$`
 	OOBUsernameRegexSuffix  = `[a-z]{6}`
 	OOBSpecMACAddress       = ".spec.MACAddress"
@@ -127,6 +127,7 @@ type access struct {
 	Protocol           metalv1alpha1.Protocol `yaml:"protocol"`
 	Flags              map[string]string      `yaml:"flags"`
 	DefaultCredentials []bmc.Credentials      `yaml:"defaultCredentials"`
+	Type               bmc.Typ                `yaml:"type"`
 }
 
 type ctxkOOBHost struct{}
@@ -570,7 +571,10 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 }
 
 func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+	host := ctx.Value(ctxkOOBHost{}).(string)
+
 	var apply *metalv1alpha1apply.OOBApplyConfiguration
+	var status *metalv1alpha1apply.OOBStatusApplyConfiguration
 
 	var defaultCreds []bmc.Credentials
 	var creds bmc.Credentials
@@ -606,7 +610,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 				} else {
 					err = fmt.Errorf("secret has no valid credentials")
 				}
-				return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+				return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, err)
 			}
 
 			creds.Username = secret.Spec.Username
@@ -624,7 +628,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		}
 
 		if len(secretList.Items) > 1 {
-			return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, fmt.Errorf("multiple OOBSecrets for MAC address %s", oob.Spec.MACAddress))
+			return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("multiple OOBSecrets for MAC address %s", oob.Spec.MACAddress))
 		}
 
 		if len(secretList.Items) == 1 {
@@ -645,7 +649,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
 				WithSecretRef(*oob.Spec.SecretRef))
 
-			return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateInProgress, metav1.Condition{
+			return r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -656,7 +660,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 	if oob.Spec.Protocol == nil || (creds.Username == "" && creds.Password == "") {
 		a, ok := r.macDB.Get(oob.Spec.MACAddress)
 		if !ok {
-			return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, fmt.Errorf("cannot find MAC address in MAC DB: %s", oob.Spec.MACAddress))
+			return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot find MAC address in MAC DB: %s", oob.Spec.MACAddress))
 		}
 
 		if a.Ignore && !metav1.HasAnnotation(oob.ObjectMeta, OOBIgnoreAnnotation) {
@@ -672,47 +676,51 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 				OOBIgnoreAnnotation: "",
 			})
 
-			return ctx, apply, nil, nil
+			return ctx, apply, status, nil
 		}
 
 		oob.Spec.Protocol = &a.Protocol
 		oob.Spec.Flags = a.Flags
 		defaultCreds = a.DefaultCredentials
-
-		if !util.NilOrEqual(oob.Spec.Protocol, &a.Protocol) ||
-			!maps.Equal(oob.Spec.Flags, a.Flags) {
-			if apply == nil {
-				var err error
-				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
-				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
-				}
+		oob.Status.Type = metalv1alpha1.OOBType(a.Type)
+		log.Debug(ctx, "Setting protocol, flags, and type")
+		if apply == nil {
+			var err error
+			apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
 			}
-			apply = apply.WithSpec(util.Ensure(apply.Spec).
-				WithProtocol(metalv1alpha1apply.Protocol().
-					WithName(oob.Spec.Protocol.Name).
-					WithPort(oob.Spec.Protocol.Port)).
-				WithFlags(oob.Spec.Flags))
 		}
+		apply = apply.WithSpec(util.Ensure(apply.Spec).
+			WithProtocol(metalv1alpha1apply.Protocol().
+				WithName(oob.Spec.Protocol.Name).
+				WithPort(oob.Spec.Protocol.Port)).
+			WithFlags(oob.Spec.Flags))
+		applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
+		if err != nil {
+			return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+		}
+		status = util.Ensure(applyst.Status).
+			WithType(metalv1alpha1.OOBType(a.Type))
 	}
 
-	b, err := bmc.NewBMC(string(oob.Spec.Protocol.Name), oob.Spec.Flags, ctx.Value(ctxkOOBHost{}).(string), oob.Spec.Protocol.Port, creds, expiration)
+	b, err := bmc.NewBMC(string(oob.Spec.Protocol.Name), oob.Spec.Flags, host, oob.Spec.Protocol.Port, creds, expiration)
 	if err != nil {
-		return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+		return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot initialize BMC: %w", err))
 	}
 
 	if creds.Username == "" && creds.Password == "" {
 		log.Info(ctx, "Ensuring initial credentials")
 		err = b.EnsureInitialCredentials(ctx, defaultCreds, r.temporaryPassword)
 		if err != nil {
-			return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+			return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot ensure initial credentials: %w", err))
 		}
 		creds, _ = b.Credentials()
 		expiration = now
 	} else {
 		err = b.Connect(ctx)
 		if err != nil {
-			return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+			return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot connect to BMC: %w", err))
 		}
 	}
 
@@ -722,24 +730,24 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			log.Info(ctx, "Creating new credentials", "expired", expiration)
 			creds.Username, err = password.Generate(6, 0, 0, true, false)
 			if err != nil {
-				return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+				return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot generate credentials: %w", err))
 			}
 			creds.Username = r.usernamePrefix + creds.Username
 
 			creds.Password, err = password.Generate(16, 6, 0, false, true)
 			if err != nil {
-				return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+				return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot generate credentials: %w", err))
 			}
 
 			var anotherPassword string
 			anotherPassword, err = password.Generate(16, 6, 0, false, true)
 			if err != nil {
-				return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+				return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot generate credentials: %w", err))
 			}
 
 			err = b.CreateUser(ctx, creds, anotherPassword)
 			if err != nil {
-				return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+				return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot create user: %w", err))
 			}
 
 			creds, expiration = b.Credentials()
@@ -787,7 +795,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 
 			err = b.DeleteUsers(ctx, r.usernameRegex)
 			if err != nil {
-				return r.setError(ctx, oob, apply, nil, OOBErrorBadCredentials, err)
+				return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot delete users: %w", err))
 			}
 		}
 	}
@@ -809,7 +817,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 	if oob.Status.State == metalv1alpha1.OOBStateError {
 		cond, _ := ssa.GetCondition(oob.Status.Conditions, metalv1alpha1.OOBConditionTypeReady)
 		if strings.HasPrefix(cond.Message, OOBErrorBadCredentials+": ") {
-			return r.setCondition(ctx, oob, apply, nil, metalv1alpha1.OOBStateInProgress, metav1.Condition{
+			return r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonInProgress,
@@ -888,6 +896,23 @@ func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object)
 	if len(oobList.Items) == 0 && ip.Status.State == ipamv1alpha1.CFinishedIPState && ip.Status.Reserved != nil {
 		_, ok = r.macDB.Get(mac)
 		if ok {
+			if metav1.HasAnnotation(ip.ObjectMeta, OOBUnknownAnnotation) {
+				log.Debug(ctx, "Removing unknown annotation from IP")
+				var ipApply *ipamv1alpha1apply.IPApplyConfiguration
+				ipApply, err = ipamv1alpha1apply.ExtractIP(ip, OOBFieldManager)
+				if err != nil {
+					log.Error(ctx, fmt.Errorf("cannot extract IP: %w", err))
+					return nil
+				}
+				ipApply.Annotations = nil
+				err = r.Patch(ctx, ip, ssa.Apply(ipApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
+				if err != nil {
+					log.Error(ctx, fmt.Errorf("cannot apply IP: %w", err))
+					return nil
+				}
+			}
+
+			log.Info(ctx, "Creating OOB")
 			oob := metalv1alpha1.OOB{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: mac,
@@ -900,6 +925,24 @@ func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object)
 			err = r.Patch(ctx, &oob, ssa.Apply(apply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 			if err != nil {
 				log.Error(ctx, fmt.Errorf("cannot apply OOB: %w", err))
+				return nil
+			}
+		} else if !metav1.HasAnnotation(ip.ObjectMeta, OOBUnknownAnnotation) {
+			log.Debug(ctx, "Adding unknown annotation to IP")
+			ip = ip.DeepCopy()
+			var ipApply *ipamv1alpha1apply.IPApplyConfiguration
+			ipApply, err = ipamv1alpha1apply.ExtractIP(ip, OOBFieldManager)
+			if err != nil {
+				log.Error(ctx, fmt.Errorf("cannot extract IP: %w", err))
+				return nil
+			}
+			ipApply = ipApply.WithAnnotations(map[string]string{
+				OOBUnknownAnnotation: "",
+			})
+			err = r.Patch(ctx, ip, ssa.Apply(ipApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
+			if err != nil {
+				log.Error(ctx, fmt.Errorf("cannot apply IP: %w", err))
+				return nil
 			}
 		}
 	}
