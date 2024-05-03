@@ -601,60 +601,9 @@ func (b *RedfishBMC) ReadInfo(ctx context.Context) (Info, error) {
 	defer c.Logout()
 
 	log.Debug(ctx, "Reading BMC info")
-	systems, err := c.Service.Systems()
-	if err != nil {
-		return Info{}, fmt.Errorf("cannot get systems information: %w", err)
-	}
-	if len(systems) == 0 {
-		return Info{}, fmt.Errorf("cannot get systems information")
-	}
-
-	uuid := systems[0].UUID
-	if uuid == "" {
-		return Info{}, fmt.Errorf("BMC has no UUID attribute")
-	}
-	uuid = strings.ToLower(uuid)
-
-	led := LED(systems[0].IndicatorLED)
-
-	// Reading the OS state is supported only on Lenovo hardware
-	var os, osReason string
-	if len(systems) > 0 {
-		sys := systems[0]
-		sysRaw, err := c.Get(sys.ODataID)
-		if err != nil {
-			return Info{}, fmt.Errorf("cannot get systems (raw): %w", err)
-		}
-		osStatus := struct {
-			OEM struct {
-				Lenovo struct {
-					SystemStatus *string `json:"SystemStatus"`
-				} `json:"Lenovo"`
-			} `json:"OEM"`
-		}{}
-
-		decoder := json.NewDecoder(sysRaw.Body)
-		err = decoder.Decode(&osStatus)
-		if err != nil {
-			return Info{}, fmt.Errorf("cannot decode information for OS status: %w", err)
-		}
-
-		if osStatus.OEM.Lenovo.SystemStatus != nil {
-			if sys.PowerState == redfish.OffPowerState {
-				osReason = "PoweredOff"
-			} else if state := *osStatus.OEM.Lenovo.SystemStatus; state == "OSBooted" || state == "BootingOSOrInUndetectedOS" {
-				os = "Ok"
-				osReason = state
-			} else {
-				osReason = state
-			}
-		}
-	}
-
-	manufacturer := systems[0].Manufacturer
-	capabilities := []string{"credentials", "power", "led"}
-	console := ""
-	fw := ""
+	info := Info{}
+	manufacturer := c.Service.Vendor
+	info.Manufacturer = manufacturer
 
 	mgr, err := c.Service.Managers()
 	if err != nil {
@@ -664,30 +613,32 @@ func (b *RedfishBMC) ReadInfo(ctx context.Context) (Info, error) {
 		consoleList := mgr[0].SerialConsole.ConnectTypesSupported
 		if mgr[0].SerialConsole.ServiceEnabled {
 			if strings.ToLower(manufacturer) == "lenovo" && isConsoleTypeSupported(consoleList, redfish.SSHSerialConnectTypesSupported) {
-				capabilities = append(capabilities, "console")
-				console = "ssh-lenovo"
+				info.Console = "ssh-lenovo"
 			} else if isConsoleTypeSupported(consoleList, redfish.IPMISerialConnectTypesSupported) {
-				capabilities = append(capabilities, "console")
-				console = "ipmi"
+				info.Console = "ipmi"
 			}
-			fw = mgr[0].FirmwareVersion
+			info.FirmwareVersion = mgr[0].FirmwareVersion
 		}
 	}
 
-	return Info{
-		UUID:         uuid,
-		Type:         "BMC",
-		Capabilities: capabilities,
-		SerialNumber: systems[0].SerialNumber,
-		SKU:          systems[0].SKU,
-		Manufacturer: manufacturer,
-		LocatorLED:   led,
-		Power:        Power(fmt.Sprintf("%v", systems[0].PowerState)),
-		OS:           os,
-		OSReason:     osReason,
-		Console:      console,
-		FWVersion:    fw,
-	}, nil
+	systems, err := c.Service.Systems()
+	if err != nil {
+		return Info{}, fmt.Errorf("cannot get systems information: %w", err)
+	}
+	for _, system := range systems {
+		machine := Machine{}
+		machine.Manufacturer = manufacturer
+		machine.Power = Power(fmt.Sprintf("%v", system.PowerState))
+		machine.SKU = system.SKU
+		machine.LocatorLED = LED(system.IndicatorLED)
+		machine.SerialNumber = system.SerialNumber
+		machine.UUID = strings.ToLower(system.UUID)
+		if machine.UUID == "" {
+			return Info{}, fmt.Errorf("System has no UUID")
+		}
+		info.Machines = append(info.Machines, machine)
+	}
+	return info, nil
 }
 
 func isConsoleTypeSupported(consoleList []redfish.SerialConnectTypesSupported, console redfish.SerialConnectTypesSupported) bool {

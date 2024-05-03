@@ -14,9 +14,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
-
 	"github.com/ironcore-dev/metal/internal/log"
 )
 
@@ -146,62 +143,8 @@ func (b *IPMIBMC) Connect(ctx context.Context) error {
 
 func (b *IPMIBMC) ReadInfo(ctx context.Context) (Info, error) {
 	log.Debug(ctx, "Reading BMC info", "host", b.host)
-	info := make(map[string]string)
-
-	out, serr, err := ipmiExecuteCommand(ctx, b.host, b.port, b.creds, "ipmitool", "fru", "list", "0")
-	if err != nil {
-		return Info{}, fmt.Errorf("cannot get fru info, stderr: %s: %w", serr, err)
-	}
-	outputmap(out, &info)
-
-	out, serr, err = ipmiExecuteCommand(ctx, b.host, b.port, b.creds, "ipmitool", "mc", "guid")
-	if err != nil {
-		return Info{}, fmt.Errorf("cannot get mc info, stderr: %s: %w", serr, err)
-	}
-	outputmap(out, &info)
-
-	out, serr, err = ipmiExecuteCommand(ctx, b.host, b.port, b.creds, "ipmi-chassis", "--get-chassis-status")
-	if err != nil {
-		return Info{}, fmt.Errorf("cannot get chassis status, stderr: %s: %w", serr, err)
-	}
-	outputmap(out, &info)
-
-	out, serr, err = ipmiExecuteCommand(ctx, b.host, b.port, b.creds, "ipmitool", "bmc", "info")
-	if err != nil {
-		return Info{}, fmt.Errorf("cannot get bmc info, stderr: %s: %w", serr, err)
-	}
-	outputmap(out, &info)
-
-	uuid, ok := info["System GUID"]
-	if !ok {
-		return Info{}, fmt.Errorf("cannot determine uuid for machine")
-	}
-	uuid = strings.ToLower(uuid)
-	powerstate, ok := info["System Power"]
-	if !ok {
-		return Info{}, fmt.Errorf("cannot determine the power state for machine")
-	}
-	serial := info["Product Serial"]
-	sku := info["Product SKU"]
-	manufacturer := info["Manufacturer"]
-	//TODO: currently we can't handle this correctly as we can't read the state on most hardware
-	//led, ok := info["Chassis Identify State"]
-	led := ""
-	fw := info["Firmware Revision"]
-
-	//TODO: properly detect if sol is supported
-	return Info{
-		UUID:         uuid,
-		Type:         "BMC",
-		Capabilities: []string{"credentials", "power", "led", "console"},
-		SerialNumber: serial,
-		SKU:          sku,
-		Manufacturer: manufacturer,
-		LocatorLED:   LED(led),
-		Power:        Power(cases.Title(language.English).String(powerstate)),
-		Console:      "ipmi",
-		FWVersion:    fw,
-	}, nil
+	// TODO: implement proper ipmi readinfo
+	return Info{}, nil
 }
 
 func ipmiGenerateCommand(ctx context.Context, host string, port int32, creds Credentials, cmd ...string) ([]string, error) {
