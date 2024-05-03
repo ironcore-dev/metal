@@ -70,9 +70,6 @@ type OOBStatus struct {
 	Manufacturer string `json:"manufacturer,omitempty"`
 
 	// +optional
-	SKU string `json:"sku,omitempty"`
-
-	// +optional
 	SerialNumber string `json:"serialNumber,omitempty"`
 
 	// +optional
@@ -121,7 +118,6 @@ const (
 // +kubebuilder:printcolumn:name="MACAddress",type=string,JSONPath=`.spec.macAddress`
 // +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.status.type`
 // +kubebuilder:printcolumn:name="Manufacturer",type=string,JSONPath=`.status.manufacturer`
-// +kubebuilder:printcolumn:name="SKU",type=string,JSONPath=`.status.sku`,priority=100
 // +kubebuilder:printcolumn:name="SerialNumber",type=string,JSONPath=`.status.serialNumber`,priority=100
 // +kubebuilder:printcolumn:name="FirmwareVersion",type=string,JSONPath=`.status.firmwareVersion`,priority=100
 // +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`

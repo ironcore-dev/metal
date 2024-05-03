@@ -24,10 +24,6 @@ spec:
     - jsonPath: .status.manufacturer
       name: Manufacturer
       type: string
-    - jsonPath: .status.sku
-      name: SKU
-      priority: 100
-      type: string
     - jsonPath: .status.serialNumber
       name: SerialNumber
       priority: 100
@@ -202,8 +198,6 @@ spec:
               manufacturer:
                 type: string
               serialNumber:
-                type: string
-              sku:
                 type: string
               state:
                 enum:

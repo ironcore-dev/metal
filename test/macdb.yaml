@@ -5,3 +5,4 @@ macs:
   defaultCredentials:
   - username: admin
     password: admin
+  type: Machine

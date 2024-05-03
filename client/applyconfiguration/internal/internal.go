@@ -321,9 +321,6 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: serialNumber
       type:
         scalar: string
-    - name: sku
-      type:
-        scalar: string
     - name: state
       type:
         scalar: string

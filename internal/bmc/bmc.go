@@ -41,6 +41,8 @@ type Info struct {
 	FWVersion    string
 }
 
+type Typ string
+
 type LEDControl interface {
 	SetLocatorLED(ctx context.Context, state LED) (LED, error)
 }
