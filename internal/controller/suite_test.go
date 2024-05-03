@@ -108,6 +108,9 @@ var _ = BeforeSuite(func() {
 		Metrics: server.Options{
 			BindAddress: "0",
 		},
+		BaseContext: func() context.Context {
+			return ctx
+		},
 	})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(mgr).NotTo(BeNil())

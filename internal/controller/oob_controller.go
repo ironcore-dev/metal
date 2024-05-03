@@ -364,6 +364,7 @@ func (r *OOBReconciler) runPhase(ctx context.Context, oob *metalv1alpha1.OOB, ph
 func (r *OOBReconciler) setCondition(ctx context.Context, oob *metalv1alpha1.OOB, apply *metalv1alpha1apply.OOBApplyConfiguration, status *metalv1alpha1apply.OOBStatusApplyConfiguration, state metalv1alpha1.OOBState, cond metav1.Condition) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
 	conds, mod := ssa.SetCondition(oob.Status.Conditions, cond)
 	if oob.Status.State != state || mod {
+		log.Debug(ctx, "Setting condition", "reason", cond.Reason)
 		if status == nil {
 			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
 			if err != nil {
@@ -415,6 +416,7 @@ func (r *OOBReconciler) processInitial(ctx context.Context, oob *metalv1alpha1.O
 	ctx = log.WithValues(ctx, "mac", oob.Spec.MACAddress)
 
 	if !controllerutil.ContainsFinalizer(oob, OOBFinalizer) {
+		log.Debug(ctx, "Adding finalizer")
 		var err error
 		apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 		if err != nil {
@@ -467,6 +469,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 
 			oob.Spec.EndpointRef = nil
 
+			log.Debug(ctx, "Clearing endpoint ref")
 			apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 			if err != nil {
 				return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
@@ -501,6 +504,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 				Name: ip.Name,
 			}
 
+			log.Debug(ctx, "Setting endpoint ref")
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
@@ -585,6 +589,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		if errors.IsNotFound(err) {
 			oob.Spec.SecretRef = nil
 
+			log.Debug(ctx, "Clearing secret ref")
 			apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 			if err != nil {
 				return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
@@ -630,6 +635,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			}
 			ctx = log.WithValues(ctx, "secret", oob.Spec.SecretRef.Name)
 
+			log.Debug(ctx, "Setting secret ref")
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
@@ -654,6 +660,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		}
 
 		if a.Ignore && !metav1.HasAnnotation(oob.ObjectMeta, OOBIgnoreAnnotation) {
+			log.Debug(ctx, "Adding ignore annotation")
 			if apply == nil {
 				var err error
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
@@ -744,6 +751,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			if secret.Name == "" {
 				secret.Name = oob.Spec.MACAddress
 			}
+			log.Debug(ctx, "Adding finalizer to OOBSecret and setting MAC, credentials, and expiration")
 			var secretApply *metalv1alpha1apply.OOBSecretApplyConfiguration
 			secretApply, err = metalv1alpha1apply.ExtractOOBSecret(&secret, OOBFieldManager)
 			if err != nil {
@@ -767,6 +775,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			}
 			ctx = log.WithValues(ctx, "secret", oob.Spec.SecretRef.Name)
 
+			log.Debug(ctx, "Setting secret ref")
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
@@ -784,6 +793,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 	}
 
 	if !controllerutil.ContainsFinalizer(&secret, OOBFinalizer) {
+		log.Debug(ctx, "Adding finalizer to OOBSecret")
 		var secretApply *metalv1alpha1apply.OOBSecretApplyConfiguration
 		secretApply, err = metalv1alpha1apply.ExtractOOBSecret(&secret, OOBFieldManager)
 		if err != nil {
@@ -855,6 +865,7 @@ func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object)
 		log.Error(ctx, fmt.Errorf("invalid MAC address: %s", mac))
 		return nil
 	}
+	ctx = log.WithValues(ctx, "mac", mac)
 
 	oobList := metalv1alpha1.OOBList{}
 	err := r.List(ctx, &oobList, client.MatchingFields{OOBSpecMACAddress: mac})

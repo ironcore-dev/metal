@@ -111,7 +111,7 @@ func (r *MachineClaimReconciler) finalizeMachine(ctx context.Context, claim *met
 		return fmt.Errorf("MachineClaimRef in Machine does not match MachineClaim UID")
 	}
 
-	log.Debug(ctx, "Removing finalizer from Machine and clearing MachineClaimRef and Power")
+	log.Debug(ctx, "Removing finalizer from Machine and clearing claim ref and power")
 	var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 	machineApply, err = metalv1alpha1apply.ExtractMachine(&machine, MachineClaimFieldManager)
 	if err != nil {
@@ -211,6 +211,7 @@ func (r *MachineClaimReconciler) processInitial(ctx context.Context, claim *meta
 	var err error
 
 	if !controllerutil.ContainsFinalizer(claim, MachineClaimFinalizer) {
+		log.Debug(ctx, "Adding finalizer")
 		apply, err = metalv1alpha1apply.ExtractMachineClaim(claim, MachineClaimFieldManager)
 		if err != nil {
 			return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim: %w", err)
@@ -219,6 +220,7 @@ func (r *MachineClaimReconciler) processInitial(ctx context.Context, claim *meta
 	}
 
 	if claim.Status.Phase == "" {
+		log.Debug(ctx, "Setting initial phase")
 		var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 		applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 		if err != nil {
@@ -248,6 +250,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 		if errors.IsNotFound(err) {
 			claim.Spec.MachineRef = nil
 
+			log.Debug(ctx, "Clearing machine ref")
 			apply, err = metalv1alpha1apply.ExtractMachineClaim(claim, MachineClaimFieldManager)
 			if err != nil {
 				return ctx, nil, nil, fmt.Errorf("cannot extract MachineClaim: %w", err)
@@ -278,6 +281,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 				Name: machine.Name,
 			}
 
+			log.Debug(ctx, "Setting machine ref")
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractMachineClaim(claim, MachineClaimFieldManager)
 				if err != nil {
@@ -292,6 +296,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 		if !found {
 			phase := metalv1alpha1.MachineClaimPhaseUnbound
 			if claim.Status.Phase != phase {
+				log.Debug(ctx, "Setting phase to unbound")
 				var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 				applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 				if err != nil {
@@ -312,14 +317,14 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 	}
 
 	if machine.Status.State != metalv1alpha1.MachineStateReady {
-		log.Debug(ctx, "Removing finalizer from Machine and clearing MachineClaimRef and Power")
+		log.Debug(ctx, "Removing finalizer from Machine and clearing claim ref and power")
 		var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 		machineApply, err = metalv1alpha1apply.ExtractMachine(&machine, MachineClaimFieldManager)
 		if err != nil {
 			return ctx, nil, nil, fmt.Errorf("cannot extract Machine: %w", err)
 		}
 		machineApply.Finalizers = util.Clear(machineApply.Finalizers, MachineClaimFinalizer)
-		machineApply = nil
+		machineApply.Spec = nil
 		err = r.Patch(ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineClaimFieldManager), client.ForceOwnership)
 		if err != nil {
 			return ctx, nil, nil, fmt.Errorf("cannot apply Machine: %w", err)
@@ -327,6 +332,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 
 		phase := metalv1alpha1.MachineClaimPhaseUnbound
 		if claim.Status.Phase != phase {
+			log.Debug(ctx, "Setting phase to unbound")
 			var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 			applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 			if err != nil {
@@ -342,7 +348,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 	if !controllerutil.ContainsFinalizer(&machine, MachineClaimFinalizer) ||
 		!util.NilOrEqual(machine.Spec.MachineClaimRef, &claimRef) ||
 		machine.Spec.Power != claim.Spec.Power {
-		log.Debug(ctx, "Adding finalizer to Machine and setting MachineClaimRef and Power")
+		log.Debug(ctx, "Adding finalizer to Machine and setting claim ref and power")
 		var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 		machineApply, err = metalv1alpha1apply.ExtractMachine(&machine, MachineClaimFieldManager)
 		if err != nil {
@@ -360,6 +366,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 
 	phase := metalv1alpha1.MachineClaimPhaseBound
 	if claim.Status.Phase != phase {
+		log.Debug(ctx, "Setting phase to bound")
 		var applyst *metalv1alpha1apply.MachineClaimApplyConfiguration
 		applyst, err = metalv1alpha1apply.ExtractMachineClaimStatus(claim, MachineClaimFieldManager)
 		if err != nil {
