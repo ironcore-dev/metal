@@ -29,7 +29,6 @@ Files:
   api/*
   cmd/*
   config/*
-  hack/*
   internal/*
   test/*
   .dockerignore

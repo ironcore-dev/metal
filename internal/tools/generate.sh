@@ -17,7 +17,7 @@ APIS_OPENAPI="k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/api/r
 
 go run k8s.io/code-generator/cmd/openapi-gen \
   --output-base "$GOPATH/src" \
-  --go-header-file hack/boilerplate.go.txt \
+  --go-header-file .reuse/boilerplate.go.txt \
   --input-dirs "$APIS_OPENAPI" \
   --output-package "github.com/ironcore-dev/metal/client/openapi" \
   -O zz_generated.openapi \
@@ -26,7 +26,7 @@ go run k8s.io/code-generator/cmd/openapi-gen \
 go run github.com/ironcore-dev/metal/internal/tools/models-schema > "$MODELSSCHEMA"
 go run k8s.io/code-generator/cmd/applyconfiguration-gen \
   --output-base "$GOPATH/src" \
-  --go-header-file hack/boilerplate.go.txt \
+  --go-header-file .reuse/boilerplate.go.txt \
   --input-dirs "$APIS_APPLYCONFIGURATION" \
   --openapi-schema "$MODELSSCHEMA" \
   --output-package "github.com/ironcore-dev/metal/client/applyconfiguration"

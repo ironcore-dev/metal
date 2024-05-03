@@ -37,7 +37,7 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 
 .PHONY: generate
 generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	@go run sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	@go run sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".reuse/boilerplate.go.txt" paths="./..."
 	@internal/tools/generate.sh
 
 .PHONY: fmt
@@ -58,7 +58,7 @@ lint: ## Run golangci-lint linter & yamllint.
 
 .PHONY: addlicense
 addlicense: ## Add license headers to all go files.
-	@find . -name '*.go' -exec go run github.com/google/addlicense -f hack/license-header.txt {} +
+	@find . -name '*.go' -exec go run github.com/google/addlicense -f .reuse/license-header.txt {} +
 
 .PHONY: checklicense
 checklicense: ## Check that every file has a license header present.
