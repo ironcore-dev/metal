@@ -27,25 +27,37 @@ type Credentials struct {
 }
 
 type Info struct {
-	UUID         string
-	Type         string
-	Capabilities []string
-	SerialNumber string
-	SKU          string
-	Manufacturer string
-	LocatorLED   LED
-	Power        Power
-	OS           string
-	OSReason     string
-	Console      string
-	FWVersion    string
+	Type            Typ
+	Manufacturer    string
+	SerialNumber    string
+	FirmwareVersion string
+	Console         string
+	Machines        []Machine
 }
 
 type Typ string
 
-type LEDControl interface {
-	SetLocatorLED(ctx context.Context, state LED) (LED, error)
+const (
+	TypeMachine Typ = "Machine"
+	TypeSwitch  Typ = "Switch"
+	TypeRouter  Typ = "Router"
+)
+
+type Machine struct {
+	UUID         string
+	Manufacturer string
+	SKU          string
+	SerialNumber string
+	Power        Power
+	LocatorLED   LED
 }
+
+type Power string
+
+const (
+	PowerOn  Power = "On"
+	PowerOff Power = "Off"
+)
 
 type LED string
 
@@ -55,17 +67,14 @@ const (
 	LEDBlinking LED = "Blinking"
 )
 
+type LEDControl interface {
+	SetLocatorLED(ctx context.Context, state LED) (LED, error)
+}
+
 type PowerControl interface {
 	PowerOn(ctx context.Context) error
 	PowerOff(ctx context.Context, force bool) error
 }
-
-type Power string
-
-const (
-	PowerOn  Power = "On"
-	PowerOff Power = "Off"
-)
 
 type RestartControl interface {
 	Restart(ctx context.Context, force bool) error

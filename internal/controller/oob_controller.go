@@ -61,9 +61,9 @@ const (
 	OOBSecretSpecMACAddress = ".spec.MACAddress"
 	// OOBTemporaryNamespaceHack TODO: Remove temporary namespace hack.
 	OOBTemporaryNamespaceHack = "oob"
-
-	OOBErrorBadEndpoint    = "BadEndpoint"
-	OOBErrorBadCredentials = "BadCredentials"
+	OOBErrorBadEndpoint       = "BadEndpoint"
+	OOBErrorBadCredentials    = "BadCredentials"
+	OOBErrorBadInfo           = "BadInfo"
 )
 
 func NewOOBReconciler(systemNamespace, ipLabelSelector, macDB string, credsRenewalBeforeExpiry time.Duration, usernamePrefix, temporaryPasswordSecret string) (*OOBReconciler, error) {
@@ -131,6 +131,7 @@ type access struct {
 }
 
 type ctxkOOBHost struct{}
+type ctxkBMC struct{}
 
 func (r *OOBReconciler) PreStart(ctx context.Context) error {
 	return r.ensureTemporaryPassword(ctx)
@@ -286,6 +287,15 @@ func (r *OOBReconciler) reconcile(ctx context.Context, oob *metalv1alpha1.OOB) (
 		name:    "Credentials",
 		run:     r.processCredentials,
 		errType: OOBErrorBadCredentials,
+	})
+	if !advance {
+		return ctrl.Result{}, err
+	}
+
+	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
+		name:    "Info",
+		run:     r.processInfo,
+		errType: OOBErrorBadInfo,
 	})
 	if !advance {
 		return ctrl.Result{}, err
@@ -696,12 +706,14 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 				WithName(oob.Spec.Protocol.Name).
 				WithPort(oob.Spec.Protocol.Port)).
 			WithFlags(oob.Spec.Flags))
-		applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
-		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+		if a.Type != "" {
+			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+			}
+			status = util.Ensure(applyst.Status).
+				WithType(metalv1alpha1.OOBType(a.Type))
 		}
-		status = util.Ensure(applyst.Status).
-			WithType(metalv1alpha1.OOBType(a.Type))
 	}
 
 	b, err := bmc.NewBMC(string(oob.Spec.Protocol.Name), oob.Spec.Flags, host, oob.Spec.Protocol.Port, creds, expiration)
@@ -825,7 +837,36 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		}
 	}
 
-	return ctx, apply, nil, nil
+	return context.WithValue(ctx, ctxkBMC{}, b), apply, status, nil
+}
+
+func (r *OOBReconciler) processInfo(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+	b := ctx.Value(ctxkBMC{}).(bmc.BMC)
+
+	var status *metalv1alpha1apply.OOBStatusApplyConfiguration
+
+	log.Info(ctx, "Reading BMC info")
+	info, err := b.ReadInfo(ctx)
+	if err != nil {
+		return r.setError(ctx, oob, nil, status, OOBErrorBadInfo, fmt.Errorf("cannot read BMC info: %w", err))
+	}
+
+	if oob.Status.Manufacturer != info.Manufacturer ||
+		oob.Status.SerialNumber != info.SerialNumber ||
+		oob.Status.FirmwareVersion != info.FirmwareVersion {
+		log.Debug(ctx, "Setting manufacturer, serial number, and firmware version")
+		var applyst *metalv1alpha1apply.OOBApplyConfiguration
+		applyst, err = metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
+		if err != nil {
+			return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+		}
+		status = util.Ensure(applyst.Status).
+			WithManufacturer(info.Manufacturer).
+			WithSerialNumber(info.SerialNumber).
+			WithFirmwareVersion(info.FirmwareVersion)
+	}
+
+	return ctx, nil, status, nil
 }
 
 func (r *OOBReconciler) processReady(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
