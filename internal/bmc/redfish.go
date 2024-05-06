@@ -602,9 +602,25 @@ func (b *RedfishBMC) ReadInfo(ctx context.Context) (Info, error) {
 
 	log.Debug(ctx, "Reading BMC info")
 	info := Info{}
-	manufacturer := c.Service.Vendor
-	info.Manufacturer = manufacturer
-
+	manufacturer := ""
+	systems, err := c.Service.Systems()
+	if err != nil {
+		return Info{}, fmt.Errorf("cannot get systems information: %w", err)
+	}
+	for _, system := range systems {
+		machine := Machine{}
+		manufacturer = system.Manufacturer
+		machine.Manufacturer = manufacturer
+		machine.Power = Power(fmt.Sprintf("%v", system.PowerState))
+		machine.SKU = system.SKU
+		machine.LocatorLED = LED(system.IndicatorLED)
+		machine.SerialNumber = system.SerialNumber
+		machine.UUID = strings.ToLower(system.UUID)
+		if machine.UUID == "" {
+			return Info{}, fmt.Errorf("system has no UUID")
+		}
+		info.Machines = append(info.Machines, machine)
+	}
 	mgr, err := c.Service.Managers()
 	if err != nil {
 		return Info{}, fmt.Errorf("cannot get managers: %w", err)
@@ -620,24 +636,7 @@ func (b *RedfishBMC) ReadInfo(ctx context.Context) (Info, error) {
 			info.FirmwareVersion = mgr[0].FirmwareVersion
 		}
 	}
-
-	systems, err := c.Service.Systems()
-	if err != nil {
-		return Info{}, fmt.Errorf("cannot get systems information: %w", err)
-	}
-	for _, system := range systems {
-		machine := Machine{}
-		machine.Manufacturer = manufacturer
-		machine.Power = Power(fmt.Sprintf("%v", system.PowerState))
-		machine.SKU = system.SKU
-		machine.LocatorLED = LED(system.IndicatorLED)
-		machine.SerialNumber = system.SerialNumber
-		machine.UUID = strings.ToLower(system.UUID)
-		if machine.UUID == "" {
-			return Info{}, fmt.Errorf("system has no UUID")
-		}
-		info.Machines = append(info.Machines, machine)
-	}
+	info.Manufacturer = manufacturer
 	return info, nil
 }
 
