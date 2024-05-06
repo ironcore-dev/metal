@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func RegisterFake() {
@@ -81,7 +83,27 @@ func (b *FakeBMC) DeleteUsers(_ context.Context, _ *regexp.Regexp) error {
 }
 
 func (b *FakeBMC) ReadInfo(_ context.Context) (Info, error) {
-	return Info{}, nil
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return Info{}, fmt.Errorf("cannot generate UUID: %w", err)
+	}
+
+	return Info{
+		Type:            TypeMachine,
+		Manufacturer:    "Fake",
+		SerialNumber:    "0",
+		FirmwareVersion: "1",
+		Machines: []Machine{
+			{
+				UUID:         id.String(),
+				Manufacturer: "Fake",
+				SKU:          "Fake-0",
+				SerialNumber: "1",
+				Power:        PowerOn,
+				LocatorLED:   LEDOff,
+			},
+		},
+	}, nil
 }
 
 func (b *FakeBMC) SetLocatorLED(_ context.Context, state LED) (LED, error) {

@@ -634,7 +634,7 @@ func (b *RedfishBMC) ReadInfo(ctx context.Context) (Info, error) {
 		machine.SerialNumber = system.SerialNumber
 		machine.UUID = strings.ToLower(system.UUID)
 		if machine.UUID == "" {
-			return Info{}, fmt.Errorf("System has no UUID")
+			return Info{}, fmt.Errorf("system has no UUID")
 		}
 		info.Machines = append(info.Machines, machine)
 	}

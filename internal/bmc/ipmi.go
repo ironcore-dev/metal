@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+
 	"github.com/ironcore-dev/metal/internal/log"
 )
 
@@ -68,20 +69,20 @@ type IPMIUser struct {
 
 // TODO: ipmi ciphers, should this also be tested?
 
-func outputmap(ml string, mi *map[string]string) {
-	for _, line := range strings.Split(ml, "\n") {
-		colon := strings.Index(line, ":")
-		if colon == -1 {
-			continue
-		}
-		k := strings.TrimSpace(line[:colon])
-		v := strings.TrimSpace(line[colon+1:])
-		if k == "" {
-			continue
-		}
-		(*mi)[k] = v
-	}
-}
+//func outputmap(ml string, mi *map[string]string) {
+//	for _, line := range strings.Split(ml, "\n") {
+//		colon := strings.Index(line, ":")
+//		if colon == -1 {
+//			continue
+//		}
+//		k := strings.TrimSpace(line[:colon])
+//		v := strings.TrimSpace(line[colon+1:])
+//		if k == "" {
+//			continue
+//		}
+//		(*mi)[k] = v
+//	}
+//}
 
 func outputmapspace(ml string, mi *map[string]string) {
 	for _, line := range strings.Split(ml, "\n") {
