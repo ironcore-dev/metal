@@ -7,5 +7,5 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 )
 
-var _ = Describe("Machine Controller", func() {
+var _ = Describe("Machine Controller", Serial, func() {
 })

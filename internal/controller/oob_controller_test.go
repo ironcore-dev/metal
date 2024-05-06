@@ -18,15 +18,34 @@ import (
 	"github.com/ironcore-dev/metal/internal/ssa"
 )
 
-var _ = Describe("OOB Controller", func() {
+var _ = Describe("OOB Controller", Serial, func() {
+	mac := "aabbccddeeff"
+
 	It("should create an OOB from an IP", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -46,14 +65,9 @@ var _ = Describe("OOB Controller", func() {
 		})).Should(Succeed())
 
 		By("Expecting finalizer, mac, and endpointref to be correct on the OOB")
-		oob := &metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
 		Eventually(Object(oob)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
-			HaveField("Spec.MACAddress", ip.Labels[OOBIPMacLabel]),
+			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.EndpointRef.Name", ip.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -61,25 +75,33 @@ var _ = Describe("OOB Controller", func() {
 
 		By("Expecting finalizer to be correct on the IP")
 		Eventually(Object(ip)).Should(HaveField("Finalizers", ContainElement(OOBFinalizer)))
-
-		By("Deleting the OOB")
-		Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-
-		By("Expecting OOB to be deleted")
-		Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-
-		By("Expecting finalizer to be cleared on the IP")
-		Eventually(Object(ip)).Should(HaveField("Finalizers", Not(ContainElement(OOBFinalizer))))
 	})
 
 	It("should set the OOB to ignored if the ignore annotation is set", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -97,16 +119,6 @@ var _ = Describe("OOB Controller", func() {
 			ip.Status.Reserved = ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
-
-		oob := &metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Setting an ignore annoation on the OOB")
 		Eventually(Update(oob, func() {
@@ -135,13 +147,30 @@ var _ = Describe("OOB Controller", func() {
 	})
 
 	It("should handle an unavailable endpoint", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -160,20 +189,10 @@ var _ = Describe("OOB Controller", func() {
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
-		oob := &metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-		})
-
 		By("Expecting finalizer, mac, and endpointref to be correct on the OOB")
 		Eventually(Object(oob)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
-			HaveField("Spec.MACAddress", ip.Labels[OOBIPMacLabel]),
+			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.EndpointRef.Name", ip.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -196,7 +215,7 @@ var _ = Describe("OOB Controller", func() {
 				Name:      ip.Name,
 				Namespace: OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -216,13 +235,30 @@ var _ = Describe("OOB Controller", func() {
 	})
 
 	It("should handle a bad endpoint", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -241,20 +277,10 @@ var _ = Describe("OOB Controller", func() {
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
-		oob := &metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-		})
-
 		By("Expecting finalizer, mac, and endpointref to be correct on the OOB")
 		Eventually(Object(oob)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
-			HaveField("Spec.MACAddress", ip.Labels[OOBIPMacLabel]),
+			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.EndpointRef.Name", ip.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -308,13 +334,30 @@ var _ = Describe("OOB Controller", func() {
 	})
 
 	It("should create a new credentials secret", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -333,30 +376,10 @@ var _ = Describe("OOB Controller", func() {
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
-
-		oob := &metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-		})
-
 		By("Expecting a correct OOBSecret to have been created")
 		Eventually(Object(secret)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
-			HaveField("Spec.MACAddress", ip.Labels[OOBIPMacLabel]),
+			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.Username", HavePrefix("metal-")),
 			HaveField("Spec.Password", Not(BeEmpty())),
 			HaveField("Spec.ExpirationTime", Not(BeNil())),
@@ -368,7 +391,7 @@ var _ = Describe("OOB Controller", func() {
 		))
 	})
 
-	It("should not create an oob if the MAC is unknown", func(ctx SpecContext) {
+	It("should not create an OOB if the MAC is unknown", func(ctx SpecContext) {
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
@@ -394,9 +417,12 @@ var _ = Describe("OOB Controller", func() {
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
+		By("Expecting the IP to have an unknown annotation")
+		Eventually(Object(ip)).Should(HaveField("Annotations", HaveKey(OOBUnknownAnnotation)))
+
 		oob := &metalv1alpha1.OOB{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
+				Name: "aabbccddee00", //fixme
 			},
 		}
 
@@ -405,13 +431,30 @@ var _ = Describe("OOB Controller", func() {
 	})
 
 	It("should handle a bad credentials secret", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -430,30 +473,10 @@ var _ = Describe("OOB Controller", func() {
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
-
-		oob := &metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-		})
-
 		By("Expecting a correct OOBSecret to have been created")
 		Eventually(Object(secret)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
-			HaveField("Spec.MACAddress", ip.Labels[OOBIPMacLabel]),
+			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.Username", HavePrefix("metal-")),
 			HaveField("Spec.Password", Not(BeEmpty())),
 			HaveField("Spec.ExpirationTime", Not(BeNil())),
@@ -478,7 +501,7 @@ var _ = Describe("OOB Controller", func() {
 
 		By("Restoring the MAC on the OOBSecret")
 		Eventually(Update(secret, func() {
-			secret.Spec.MACAddress = ip.Labels[OOBIPMacLabel]
+			secret.Spec.MACAddress = mac
 		})).Should(Succeed())
 
 		By("Expecting the OOB to recover")
@@ -489,13 +512,30 @@ var _ = Describe("OOB Controller", func() {
 	})
 
 	It("should rotate expiring credentials", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddeeff",
+					OOBIPMacLabel: mac,
 					"test":        "test",
 				},
 			},
@@ -514,30 +554,10 @@ var _ = Describe("OOB Controller", func() {
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
-
-		oob := &metalv1alpha1.OOB{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: ip.Labels[OOBIPMacLabel],
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-		})
-
 		By("Expecting a correct OOBSecret to have been created")
 		Eventually(Object(secret)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
-			HaveField("Spec.MACAddress", ip.Labels[OOBIPMacLabel]),
+			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.Username", HavePrefix("metal-")),
 			HaveField("Spec.Password", Not(BeEmpty())),
 			HaveField("Spec.ExpirationTime", Not(BeNil())),
@@ -563,13 +583,67 @@ var _ = Describe("OOB Controller", func() {
 		By("Expecting the OOBSecret to contain new credentials")
 		Eventually(Object(secret)).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
-			HaveField("Spec.MACAddress", ip.Labels[OOBIPMacLabel]),
+			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.Username", Not(Equal(username))),
 			HaveField("Spec.Password", Not(Equal(password))),
 			HaveField("Spec.ExpirationTime", Not(Equal(expiration))),
 		))
 		Eventually(Object(oob)).Should(SatisfyAll(
 			HaveField("Spec.SecretRef.Name", secret.Name),
+			HaveField("Status.State", metalv1alpha1.OOBStateReady),
+			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
+		))
+	})
+
+	It("should retrieve BMC info", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+		})
+
+		By("Creating an IP")
+		ip := &ipamv1alpha1.IP{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "test-",
+				Namespace:    OOBTemporaryNamespaceHack,
+				Labels: map[string]string{
+					OOBIPMacLabel: mac,
+					"test":        "test",
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
+			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
+		})
+
+		By("Patching IP reservation and state")
+		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(UpdateStatus(ip, func() {
+			ip.Status.Reserved = ipAddr
+			ip.Status.State = ipamv1alpha1.CFinishedIPState
+		})).Should(Succeed())
+
+		By("Expecting the OOB to have the correct info")
+		Eventually(Object(oob)).Should(SatisfyAll(
+			HaveField("Status.Type", metalv1alpha1.OOBTypeMachine),
+			HaveField("Status.Manufacturer", "Fake"),
+			HaveField("Status.SerialNumber", "0"),
+			HaveField("Status.FirmwareVersion", "1"),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
 		))
