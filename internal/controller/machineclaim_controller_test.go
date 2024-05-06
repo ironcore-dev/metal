@@ -15,7 +15,7 @@ import (
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 )
 
-var _ = Describe("MachineClaim Controller", func() {
+var _ = Describe("MachineClaim Controller", Serial, func() {
 	var ns *v1.Namespace
 
 	BeforeEach(func(ctx SpecContext) {

@@ -50,7 +50,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: manifests generate fmt vet ## Run tests.
-	@go run github.com/onsi/ginkgo/v2/ginkgo -r --race --randomize-suites --randomize-all --keep-going --timeout=9223372036s
+	@go run github.com/onsi/ginkgo/v2/ginkgo -r --race --randomize-suites --keep-going --randomize-all --repeat=1
 
 .PHONY: lint
 lint: ## Run golangci-lint linter & yamllint.
