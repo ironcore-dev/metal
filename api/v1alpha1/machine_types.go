@@ -22,6 +22,7 @@ type MachineSpec struct {
 
 	OOBRef v1.LocalObjectReference `json:"oobRef"`
 
+	// +optional
 	InventoryRef *v1.LocalObjectReference `json:"inventoryRef,omitempty"`
 
 	// +optional
@@ -116,7 +117,7 @@ const (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:printcolumn:name="UUID",type=string,JSONPath=`.status.uuid`
+// +kubebuilder:printcolumn:name="UUID",type=string,JSONPath=`.spec.uuid`
 // +kubebuilder:printcolumn:name="Manufacturer",type=string,JSONPath=`.status.manufacturer`
 // +kubebuilder:printcolumn:name="SKU",type=string,JSONPath=`.status.sku`,priority=100
 // +kubebuilder:printcolumn:name="SerialNumber",type=string,JSONPath=`.status.serialNumber`,priority=100

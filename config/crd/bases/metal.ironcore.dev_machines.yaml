@@ -15,7 +15,7 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.uuid
+    - jsonPath: .spec.uuid
       name: UUID
       type: string
     - jsonPath: .status.manufacturer

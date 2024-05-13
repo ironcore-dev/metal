@@ -15,8 +15,20 @@ import (
 
 func CreateIndexes(ctx context.Context, mgr manager.Manager) error {
 	indexer := mgr.GetFieldIndexer()
+	var err error
 
-	err := indexer.IndexField(ctx, &metalv1alpha1.MachineClaim{}, MachineClaimSpecMachineRef, func(obj client.Object) []string {
+	err = indexer.IndexField(ctx, &metalv1alpha1.Machine{}, MachineSpecOOBRefName, func(obj client.Object) []string {
+		machine := obj.(*metalv1alpha1.Machine)
+		if machine.Spec.OOBRef.Name == "" {
+			return nil
+		}
+		return []string{machine.Spec.OOBRef.Name}
+	})
+	if err != nil {
+		return fmt.Errorf("cannot index field %s: %w", MachineSpecOOBRefName, err)
+	}
+
+	err = indexer.IndexField(ctx, &metalv1alpha1.MachineClaim{}, MachineClaimSpecMachineRefName, func(obj client.Object) []string {
 		claim := obj.(*metalv1alpha1.MachineClaim)
 		if claim.Spec.MachineRef == nil || claim.Spec.MachineRef.Name == "" {
 			return nil
@@ -24,7 +36,7 @@ func CreateIndexes(ctx context.Context, mgr manager.Manager) error {
 		return []string{claim.Spec.MachineRef.Name}
 	})
 	if err != nil {
-		return fmt.Errorf("cannot index field %s: %w", MachineClaimSpecMachineRef, err)
+		return fmt.Errorf("cannot index field %s: %w", MachineClaimSpecMachineRefName, err)
 	}
 
 	err = indexer.IndexField(ctx, &metalv1alpha1.OOB{}, OOBSpecMACAddress, func(obj client.Object) []string {

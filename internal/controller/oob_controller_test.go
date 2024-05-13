@@ -422,7 +422,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 
 		oob := &metalv1alpha1.OOB{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "aabbccddee00", //fixme
+				Name: "aabbccddee00",
 			},
 		}
 
@@ -646,6 +646,75 @@ var _ = Describe("OOB Controller", Serial, func() {
 			HaveField("Status.FirmwareVersion", "1"),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
+		))
+	})
+
+	It("should create Machine objects", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		secret := &metalv1alpha1.OOBSecret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+		machine := &metalv1alpha1.Machine{}
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
+			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
+			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
+			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
+			Eventually(Get(machine)).Should(Satisfy(errors.IsNotFound))
+		})
+
+		By("Creating an IP")
+		ip := &ipamv1alpha1.IP{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "test-",
+				Namespace:    OOBTemporaryNamespaceHack,
+				Labels: map[string]string{
+					OOBIPMacLabel: mac,
+					"test":        "test",
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
+			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
+		})
+
+		By("Patching IP reservation and state")
+		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(UpdateStatus(ip, func() {
+			ip.Status.Reserved = ipAddr
+			ip.Status.State = ipamv1alpha1.CFinishedIPState
+		})).Should(Succeed())
+
+		By("Expecting the OOB to have the correct info")
+		Eventually(Object(oob)).Should(SatisfyAll(
+			HaveField("Status.Type", metalv1alpha1.OOBTypeMachine),
+			HaveField("Status.State", metalv1alpha1.OOBStateReady),
+			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
+		))
+
+		By("Listing machines")
+		machines := &metalv1alpha1.MachineList{}
+		Eventually(ObjectList(machines)).Should(HaveField("Items", HaveLen(1)))
+		machine = &machines.Items[0]
+
+		By("Expecting Machine to have the correct data")
+		Eventually(Object(machine)).Should(SatisfyAll(
+			HaveField("Spec.UUID", machine.Name),
+			HaveField("Spec.OOBRef.Name", oob.Name),
+			HaveField("Status.Manufacturer", "Fake"),
+			HaveField("Status.SKU", "Fake-0"),
+			HaveField("Status.SerialNumber", "1"),
+			HaveField("Status.Power", metalv1alpha1.PowerOn),
+			HaveField("Status.LocatorLED", metalv1alpha1.LEDOff),
 		))
 	})
 })
