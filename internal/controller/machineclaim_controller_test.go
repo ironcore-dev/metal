@@ -4,12 +4,15 @@
 package controller
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	. "sigs.k8s.io/controller-runtime/pkg/envtest/komega"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
@@ -25,7 +28,36 @@ var _ = Describe("MachineClaim Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ns)).To(Succeed())
-		DeferCleanup(k8sClient.Delete, ns)
+		DeferCleanup(func(ctx SpecContext) {
+			Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
+		})
+
+		Eventually(ObjectList(&metalv1alpha1.MachineList{})).Should(HaveField("Items", HaveLen(0)))
+		Eventually(ObjectList(&metalv1alpha1.MachineClaimList{}, &client.ListOptions{
+			Namespace: ns.Name,
+		})).Should(HaveField("Items", HaveLen(0)))
+
+		DeferCleanup(func(ctx SpecContext) {
+			Eventually(ctx, func(g Gomega, ctx SpecContext) {
+				var machines metalv1alpha1.MachineList
+				g.Expect(ObjectList(&machines)()).To(SatisfyAll())
+				if len(machines.Items) > 0 {
+					g.Expect(k8sClient.DeleteAllOf(ctx, &machines.Items[0])).To(Succeed())
+				}
+				var claims metalv1alpha1.MachineClaimList
+				g.Expect(ObjectList(&claims)()).To(SatisfyAll())
+				if len(claims.Items) > 0 {
+					g.Expect(k8sClient.DeleteAllOf(ctx, &claims.Items[0], &client.DeleteAllOfOptions{
+						ListOptions: client.ListOptions{
+							Namespace: ns.Name,
+						},
+					})).To(Succeed())
+				}
+
+				g.Expect(ObjectList(&machines)()).To(HaveField("Items", BeEmpty()))
+				g.Expect(ObjectList(&claims)()).To(HaveField("Items", BeEmpty()))
+			}, time.Second*3).Should(Succeed())
+		})
 	})
 
 	It("should claim a Machine by ref", func(ctx SpecContext) {
@@ -42,10 +74,6 @@ var _ = Describe("MachineClaim Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, machine)).To(Succeed())
-			Eventually(Get(machine)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching Machine state to Ready")
 		Eventually(UpdateStatus(machine, func() {
@@ -112,10 +140,6 @@ var _ = Describe("MachineClaim Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, machine)).To(Succeed())
-			Eventually(Get(machine)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching Machine state to Ready")
 		Eventually(UpdateStatus(machine, func() {
@@ -190,12 +214,6 @@ var _ = Describe("MachineClaim Controller", Serial, func() {
 			HaveField("Finalizers", ContainElement(MachineClaimFinalizer)),
 			HaveField("Status.Phase", metalv1alpha1.MachineClaimPhaseUnbound),
 		))
-
-		By("Deleting the MachineClaim")
-		Expect(k8sClient.Delete(ctx, claim)).To(Succeed())
-
-		By("Expecting MachineClaim to be removed")
-		Eventually(Get(claim)).Should(Satisfy(errors.IsNotFound))
 	})
 
 	It("should not claim a Machine with no matching selector", func(ctx SpecContext) {
@@ -215,10 +233,6 @@ var _ = Describe("MachineClaim Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, machine)).To(Succeed())
-			Eventually(Get(machine)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching Machine state to Ready")
 		Eventually(UpdateStatus(machine, func() {
@@ -276,10 +290,6 @@ var _ = Describe("MachineClaim Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, machine)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, machine)).To(Succeed())
-			Eventually(Get(machine)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching Machine state to Error")
 		Eventually(UpdateStatus(machine, func() {
@@ -301,10 +311,6 @@ var _ = Describe("MachineClaim Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, claim)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, claim)).To(Succeed())
-			Eventually(Get(claim)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Expecting finalizer and phase to be correct on the MachineClaim")
 		Eventually(Object(claim)).Should(SatisfyAll(

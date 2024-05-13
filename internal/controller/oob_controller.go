@@ -415,7 +415,7 @@ func (r *OOBReconciler) runPhase(ctx context.Context, oob *metalv1alpha1.OOB, ph
 func (r *OOBReconciler) setCondition(ctx context.Context, oob *metalv1alpha1.OOB, apply *metalv1alpha1apply.OOBApplyConfiguration, status *metalv1alpha1apply.OOBStatusApplyConfiguration, state metalv1alpha1.OOBState, cond metav1.Condition) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
 	conds, mod := ssa.SetCondition(oob.Status.Conditions, cond)
 	if oob.Status.State != state || mod {
-		log.Debug(ctx, "Setting condition", "reason", cond.Reason)
+		log.Debug(ctx, "Setting condition", "type", cond.Type, "status", cond.Status, "reason", cond.Reason)
 		if status == nil {
 			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
 			if err != nil {

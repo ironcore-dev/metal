@@ -39,7 +39,6 @@ var (
 )
 
 func TestControllers(t *testing.T) {
-	SetDefaultEventuallyTimeout(3 * time.Second)
 	RegisterFailHandler(Fail)
 
 	RunSpecs(t, "Controller")
@@ -81,6 +80,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 	SetClient(k8sClient)
+	SetContext(ctx)
 
 	ns := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{

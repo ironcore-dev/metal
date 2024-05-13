@@ -5,6 +5,7 @@ package controller
 
 import (
 	"fmt"
+	"time"
 
 	ipamv1alpha1 "github.com/ironcore-dev/ipam/api/ipam/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -20,6 +21,50 @@ import (
 
 var _ = Describe("OOB Controller", Serial, func() {
 	mac := "aabbccddeeff"
+	timeToReady := time.Second * 3
+
+	BeforeEach(func(ctx SpecContext) {
+		Eventually(ObjectList(&ipamv1alpha1.IPList{}, &client.ListOptions{
+			Namespace: OOBTemporaryNamespaceHack,
+		})).Should(HaveField("Items", HaveLen(0)))
+		Eventually(ObjectList(&metalv1alpha1.MachineList{})).Should(HaveField("Items", HaveLen(0)))
+		Eventually(ObjectList(&metalv1alpha1.OOBList{})).Should(HaveField("Items", HaveLen(0)))
+		Eventually(ObjectList(&metalv1alpha1.OOBSecretList{})).Should(HaveField("Items", HaveLen(0)))
+
+		DeferCleanup(func(ctx SpecContext) {
+			Eventually(ctx, func(g Gomega, ctx SpecContext) {
+				var ips ipamv1alpha1.IPList
+				g.Expect(ObjectList(&ips)()).To(SatisfyAll())
+				if len(ips.Items) > 0 {
+					g.Expect(k8sClient.DeleteAllOf(ctx, &ips.Items[0], &client.DeleteAllOfOptions{
+						ListOptions: client.ListOptions{
+							Namespace: OOBTemporaryNamespaceHack,
+						},
+					})).To(Succeed())
+				}
+				var machines metalv1alpha1.MachineList
+				g.Expect(ObjectList(&machines)()).To(SatisfyAll())
+				if len(machines.Items) > 0 {
+					g.Expect(k8sClient.DeleteAllOf(ctx, &machines.Items[0])).To(Succeed())
+				}
+				var oobs metalv1alpha1.OOBList
+				g.Expect(ObjectList(&oobs)()).To(SatisfyAll())
+				if len(oobs.Items) > 0 {
+					g.Expect(k8sClient.DeleteAllOf(ctx, &oobs.Items[0])).To(Succeed())
+				}
+				var secrets metalv1alpha1.OOBSecretList
+				g.Expect(ObjectList(&secrets)()).To(SatisfyAll())
+				if len(secrets.Items) > 0 {
+					g.Expect(k8sClient.DeleteAllOf(ctx, &secrets.Items[0])).To(Succeed())
+				}
+
+				g.Expect(ObjectList(&ips)()).To(HaveField("Items", BeEmpty()))
+				g.Expect(ObjectList(&machines)()).To(HaveField("Items", BeEmpty()))
+				g.Expect(ObjectList(&oobs)()).To(HaveField("Items", BeEmpty()))
+				g.Expect(ObjectList(&secrets)()).To(HaveField("Items", BeEmpty()))
+			}, time.Second*3).Should(Succeed())
+		})
+	})
 
 	It("should create an OOB from an IP", func(ctx SpecContext) {
 		oob := &metalv1alpha1.OOB{
@@ -27,17 +72,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: mac,
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -51,10 +85,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -65,7 +95,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting finalizer, mac, and endpointref to be correct on the OOB")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
 			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.EndpointRef.Name", ip.Name),
@@ -83,17 +113,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: mac,
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -107,10 +126,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -140,7 +155,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting OOB not to be ignored")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
 		))
@@ -152,17 +167,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: mac,
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -176,10 +180,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -190,7 +190,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting finalizer, mac, and endpointref to be correct on the OOB")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
 			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.EndpointRef.Name", ip.Name),
@@ -227,7 +227,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting the OOB to have an endpoint")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Spec.EndpointRef.Name", ip.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -240,17 +240,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: mac,
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -264,10 +253,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -278,7 +263,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting finalizer, mac, and endpointref to be correct on the OOB")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Finalizers", ContainElement(OOBFinalizer)),
 			HaveField("Spec.MACAddress", mac),
 			HaveField("Spec.EndpointRef.Name", ip.Name),
@@ -304,7 +289,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting the OOB to recover")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
 		))
@@ -327,7 +312,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting the OOB to recover")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
 		))
@@ -344,12 +329,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -363,10 +342,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -384,7 +359,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 			HaveField("Spec.Password", Not(BeEmpty())),
 			HaveField("Spec.ExpirationTime", Not(BeNil())),
 		))
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Spec.SecretRef.Name", secret.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -404,10 +379,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -441,12 +412,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -460,10 +425,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -481,7 +442,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 			HaveField("Spec.Password", Not(BeEmpty())),
 			HaveField("Spec.ExpirationTime", Not(BeNil())),
 		))
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Spec.SecretRef.Name", secret.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -505,7 +466,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting the OOB to recover")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
 		))
@@ -522,12 +483,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -541,10 +496,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -562,7 +513,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 			HaveField("Spec.Password", Not(BeEmpty())),
 			HaveField("Spec.ExpirationTime", Not(BeNil())),
 		))
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Spec.SecretRef.Name", secret.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -588,7 +539,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 			HaveField("Spec.Password", Not(Equal(password))),
 			HaveField("Spec.ExpirationTime", Not(Equal(expiration))),
 		))
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Spec.SecretRef.Name", secret.Name),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -601,17 +552,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: mac,
-			},
-		}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -625,10 +565,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -639,7 +575,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting the OOB to have the correct info")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Status.Type", metalv1alpha1.OOBTypeMachine),
 			HaveField("Status.Manufacturer", "Fake"),
 			HaveField("Status.SerialNumber", "0"),
@@ -655,19 +591,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 				Name: mac,
 			},
 		}
-		secret := &metalv1alpha1.OOBSecret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: mac,
-			},
-		}
-		machine := &metalv1alpha1.Machine{}
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, oob)).To(Succeed())
-			Eventually(Get(oob)).Should(Satisfy(errors.IsNotFound))
-			Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			Eventually(Get(secret)).Should(Satisfy(errors.IsNotFound))
-			Eventually(Get(machine)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Creating an IP")
 		ip := &ipamv1alpha1.IP{
@@ -681,10 +604,6 @@ var _ = Describe("OOB Controller", Serial, func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
-		DeferCleanup(func(ctx SpecContext) {
-			Expect(k8sClient.Delete(ctx, ip)).To(Succeed())
-			Eventually(Get(ip)).Should(Satisfy(errors.IsNotFound))
-		})
 
 		By("Patching IP reservation and state")
 		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
@@ -695,7 +614,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		})).Should(Succeed())
 
 		By("Expecting the OOB to have the correct info")
-		Eventually(Object(oob)).Should(SatisfyAll(
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
 			HaveField("Status.Type", metalv1alpha1.OOBTypeMachine),
 			HaveField("Status.State", metalv1alpha1.OOBStateReady),
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
@@ -704,7 +623,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		By("Listing machines")
 		machines := &metalv1alpha1.MachineList{}
 		Eventually(ObjectList(machines)).Should(HaveField("Items", HaveLen(1)))
-		machine = &machines.Items[0]
+		machine := &machines.Items[0]
 
 		By("Expecting Machine to have the correct data")
 		Eventually(Object(machine)).Should(SatisfyAll(
