@@ -50,7 +50,7 @@ vet: ## Run go vet against code.
 
 .PHONY: test
 test: ## Run tests.
-	@go run github.com/onsi/ginkgo/v2/ginkgo -r --race --randomize-suites --keep-going --randomize-all --repeat=1
+	@go run github.com/onsi/ginkgo/v2/ginkgo -r --race --randomize-suites --keep-going --randomize-all --repeat=11
 
 .PHONY: lint
 lint: ## Run golangci-lint linter & yamllint.
