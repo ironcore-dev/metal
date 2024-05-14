@@ -8,6 +8,7 @@ package v1alpha1
 import (
 	v1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 // MachineStatusApplyConfiguration represents an declarative configuration of the MachineStatus type for use
@@ -21,7 +22,7 @@ type MachineStatusApplyConfiguration struct {
 	ShutdownDeadline  *v1.Time                                    `json:"shutdownDeadline,omitempty"`
 	NetworkInterfaces []MachineNetworkInterfaceApplyConfiguration `json:"networkInterfaces,omitempty"`
 	State             *v1alpha1.MachineState                      `json:"state,omitempty"`
-	Conditions        []v1.Condition                              `json:"conditions,omitempty"`
+	Conditions        []metav1.ConditionApplyConfiguration        `json:"conditions,omitempty"`
 }
 
 // MachineStatusApplyConfiguration constructs an declarative configuration of the MachineStatus type for use with
@@ -102,9 +103,12 @@ func (b *MachineStatusApplyConfiguration) WithState(value v1alpha1.MachineState)
 // WithConditions adds the given value to the Conditions field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the Conditions field.
-func (b *MachineStatusApplyConfiguration) WithConditions(values ...v1.Condition) *MachineStatusApplyConfiguration {
+func (b *MachineStatusApplyConfiguration) WithConditions(values ...*metav1.ConditionApplyConfiguration) *MachineStatusApplyConfiguration {
 	for i := range values {
-		b.Conditions = append(b.Conditions, values[i])
+		if values[i] == nil {
+			panic("nil value passed to WithConditions")
+		}
+		b.Conditions = append(b.Conditions, *values[i])
 	}
 	return b
 }

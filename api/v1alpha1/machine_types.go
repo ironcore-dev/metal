@@ -124,7 +124,7 @@ const (
 // +kubebuilder:printcolumn:name="Power",type=string,JSONPath=`.status.power`
 // +kubebuilder:printcolumn:name="LocatorLED",type=string,JSONPath=`.status.locatorLED`,priority=100
 // +kubebuilder:printcolumn:name="State",type=string,JSONPath=`.status.state`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +genclient
 
 // Machine is the Schema for the machines API

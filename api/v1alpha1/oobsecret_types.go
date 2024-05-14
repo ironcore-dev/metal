@@ -28,7 +28,7 @@ type OOBSecretStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
 // +kubebuilder:printcolumn:name="MACAddress",type=string,JSONPath=`.spec.macAddress`
-// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimeStamp`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +genclient
 
 // OOBSecret is the Schema for the oobsecrets API

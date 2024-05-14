@@ -8,14 +8,14 @@ package v1alpha1
 import (
 	v1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 // MachineClaimSpecApplyConfiguration represents an declarative configuration of the MachineClaimSpec type for use
 // with apply.
 type MachineClaimSpecApplyConfiguration struct {
 	MachineRef        *v1.LocalObjectReference                         `json:"machineRef,omitempty"`
-	MachineSelector   *metav1.LabelSelector                            `json:"machineSelector,omitempty"`
+	MachineSelector   *metav1.LabelSelectorApplyConfiguration          `json:"machineSelector,omitempty"`
 	Image             *string                                          `json:"image,omitempty"`
 	Power             *v1alpha1.Power                                  `json:"power,omitempty"`
 	IgnitionSecretRef *v1.LocalObjectReference                         `json:"ignitionSecretRef,omitempty"`
@@ -39,8 +39,8 @@ func (b *MachineClaimSpecApplyConfiguration) WithMachineRef(value v1.LocalObject
 // WithMachineSelector sets the MachineSelector field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the MachineSelector field is set to the value of the last call.
-func (b *MachineClaimSpecApplyConfiguration) WithMachineSelector(value metav1.LabelSelector) *MachineClaimSpecApplyConfiguration {
-	b.MachineSelector = &value
+func (b *MachineClaimSpecApplyConfiguration) WithMachineSelector(value *metav1.LabelSelectorApplyConfiguration) *MachineClaimSpecApplyConfiguration {
+	b.MachineSelector = value
 	return b
 }
 
