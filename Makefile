@@ -36,7 +36,7 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 	@go run sigs.k8s.io/controller-tools/cmd/controller-gen rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: manifests fmt vet ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	@go run sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".reuse/boilerplate.go.txt" paths="./..."
 	@internal/tools/generate.sh
 
@@ -49,7 +49,7 @@ vet: ## Run go vet against code.
 	@go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet ## Run tests.
+test: ## Run tests.
 	@go run github.com/onsi/ginkgo/v2/ginkgo -r --race --randomize-suites --keep-going --randomize-all --repeat=1
 
 .PHONY: lint
@@ -67,7 +67,7 @@ checklicense: ## Check that every file has a license header present.
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: generate ## Build manager binary.
 	@go build -o metal cmd/main.go
 
 .PHONY: docker-build

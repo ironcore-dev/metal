@@ -64,6 +64,7 @@ const (
 	OOBErrorBadEndpoint       = "BadEndpoint"
 	OOBErrorBadCredentials    = "BadCredentials"
 	OOBErrorBadInfo           = "BadInfo"
+	OOBErrorBadMachines       = "BadMachines"
 )
 
 func NewOOBReconciler(systemNamespace, ipLabelSelector, macDB string, credsRenewalBeforeExpiry time.Duration, usernamePrefix, temporaryPasswordSecret string) (*OOBReconciler, error) {
@@ -132,6 +133,7 @@ type access struct {
 
 type ctxkOOBHost struct{}
 type ctxkBMC struct{}
+type ctxkInfo struct{}
 
 func (r *OOBReconciler) PreStart(ctx context.Context) error {
 	return r.ensureTemporaryPassword(ctx)
@@ -164,6 +166,16 @@ func (r *OOBReconciler) finalize(ctx context.Context, oob *metalv1alpha1.OOB) er
 	}
 
 	err = r.finalizeSecret(ctx, oob)
+	if err != nil {
+		return err
+	}
+
+	err = r.finalizeSecret(ctx, oob)
+	if err != nil {
+		return err
+	}
+
+	err = r.finalizeMachines(ctx, oob)
 	if err != nil {
 		return err
 	}
@@ -250,6 +262,25 @@ func (r *OOBReconciler) finalizeSecret(ctx context.Context, oob *metalv1alpha1.O
 	return nil
 }
 
+func (r *OOBReconciler) finalizeMachines(ctx context.Context, oob *metalv1alpha1.OOB) error {
+	var machineList metalv1alpha1.MachineList
+	err := r.List(ctx, &machineList, client.MatchingFields{
+		MachineSpecOOBRefName: oob.Name,
+	})
+	if err != nil {
+		return fmt.Errorf("cannot list Machines: %w", err)
+	}
+	for _, m := range machineList.Items {
+		log.Info(ctx, "Deleting machine", "machine", m.Name)
+		err = r.Delete(ctx, &m)
+		if err != nil {
+			return fmt.Errorf("cannot delete Machine: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (r *OOBReconciler) reconcile(ctx context.Context, oob *metalv1alpha1.OOB) (ctrl.Result, error) {
 	log.Debug(ctx, "Reconciling")
 
@@ -296,6 +327,15 @@ func (r *OOBReconciler) reconcile(ctx context.Context, oob *metalv1alpha1.OOB) (
 		name:    "Info",
 		run:     r.processInfo,
 		errType: OOBErrorBadInfo,
+	})
+	if !advance {
+		return ctrl.Result{}, err
+	}
+
+	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
+		name:    "Machines",
+		run:     r.processMachines,
+		errType: OOBErrorBadMachines,
 	})
 	if !advance {
 		return ctrl.Result{}, err
@@ -375,7 +415,7 @@ func (r *OOBReconciler) runPhase(ctx context.Context, oob *metalv1alpha1.OOB, ph
 func (r *OOBReconciler) setCondition(ctx context.Context, oob *metalv1alpha1.OOB, apply *metalv1alpha1apply.OOBApplyConfiguration, status *metalv1alpha1apply.OOBStatusApplyConfiguration, state metalv1alpha1.OOBState, cond metav1.Condition) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
 	conds, mod := ssa.SetCondition(oob.Status.Conditions, cond)
 	if oob.Status.State != state || mod {
-		log.Debug(ctx, "Setting condition", "reason", cond.Reason)
+		log.Debug(ctx, "Setting condition", "type", cond.Type, "status", cond.Status, "reason", cond.Reason)
 		if status == nil {
 			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
 			if err != nil {
@@ -496,7 +536,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 		var ipList ipamv1alpha1.IPList
 		err := r.List(ctx, &ipList, client.MatchingLabelsSelector{Selector: r.ipLabelSelector}, client.MatchingLabels{OOBIPMacLabel: oob.Spec.MACAddress})
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot list OOBs: %w", err)
+			return ctx, nil, nil, fmt.Errorf("cannot list IPs: %w", err)
 		}
 
 		found := false
@@ -632,7 +672,9 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 	}
 	if oob.Spec.SecretRef == nil {
 		var secretList metalv1alpha1.OOBSecretList
-		err := r.List(ctx, &secretList, client.MatchingFields{OOBSecretSpecMACAddress: oob.Spec.MACAddress})
+		err := r.List(ctx, &secretList, client.MatchingFields{
+			OOBSecretSpecMACAddress: oob.Spec.MACAddress,
+		})
 		if err != nil {
 			return ctx, nil, nil, fmt.Errorf("cannot list OOBSecrets: %w", err)
 		}
@@ -866,7 +908,97 @@ func (r *OOBReconciler) processInfo(ctx context.Context, oob *metalv1alpha1.OOB)
 			WithFirmwareVersion(info.FirmwareVersion)
 	}
 
-	return ctx, nil, status, nil
+	return context.WithValue(ctx, ctxkInfo{}, info), nil, status, nil
+}
+
+func (r *OOBReconciler) processMachines(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+	info := ctx.Value(ctxkInfo{}).(bmc.Info)
+
+	type minfo struct {
+		m *metalv1alpha1.Machine
+		i bmc.Machine
+	}
+	machines := make(map[string]minfo, len(info.Machines))
+	if oob.Status.Type == metalv1alpha1.OOBTypeMachine {
+		for _, i := range info.Machines {
+			machines[i.UUID] = minfo{
+				m: nil,
+				i: i,
+			}
+		}
+	}
+
+	var machineList metalv1alpha1.MachineList
+	err := r.List(ctx, &machineList, client.MatchingFields{
+		MachineSpecOOBRefName: oob.Name,
+	})
+	if err != nil {
+		return ctx, nil, nil, fmt.Errorf("cannot list Machines: %w", err)
+	}
+	for _, m := range machineList.Items {
+		mi, ok := machines[m.Spec.UUID]
+		if !ok {
+			log.Info(ctx, "Deleting orphaned machine", "machine", m.Name)
+			err = r.Delete(ctx, &m)
+			if err != nil {
+				return ctx, nil, nil, fmt.Errorf("cannot delete Machine: %w", err)
+			}
+			continue
+		}
+
+		machine := &m
+		machines[m.Spec.UUID] = minfo{
+			m: machine,
+			i: mi.i,
+		}
+	}
+
+	oobRef := v1.LocalObjectReference{
+		Name: oob.Name,
+	}
+
+	for uuid, mi := range machines {
+		if mi.m == nil {
+			mi.m = &metalv1alpha1.Machine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: uuid,
+				},
+			}
+			machineApply := metalv1alpha1apply.Machine(mi.m.Name, "").WithSpec(metalv1alpha1apply.MachineSpec().
+				WithUUID(uuid).
+				WithOOBRef(oobRef))
+			log.Info(ctx, "Applying Machine", "machine", mi.m.Name)
+			err = r.Patch(ctx, mi.m, ssa.Apply(machineApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
+			if err != nil {
+				return ctx, nil, nil, fmt.Errorf("cannot apply Machine: %w", err)
+			}
+		}
+
+		if mi.m.Status.Manufacturer != mi.i.Manufacturer ||
+			mi.m.Status.SKU != mi.i.SKU ||
+			mi.m.Status.SerialNumber != mi.i.SerialNumber ||
+			mi.m.Status.Power != metalv1alpha1.Power(mi.i.Power) ||
+			mi.m.Status.LocatorLED != metalv1alpha1.LED(mi.i.LocatorLED) {
+			var machineApply *metalv1alpha1apply.MachineApplyConfiguration
+			machineApply, err = metalv1alpha1apply.ExtractMachineStatus(mi.m, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, fmt.Errorf("cannot extract Machine status: %w", err)
+			}
+			machineApply = machineApply.WithStatus(util.Ensure(machineApply.Status).
+				WithManufacturer(mi.i.Manufacturer).
+				WithSKU(mi.i.SKU).
+				WithSerialNumber(mi.i.SerialNumber).
+				WithPower(metalv1alpha1.Power(mi.i.Power)).
+				WithLocatorLED(metalv1alpha1.LED(mi.i.LocatorLED)))
+			log.Info(ctx, "Applying Machine status", "machine", mi.m.Name)
+			err = r.Status().Patch(ctx, mi.m, ssa.Apply(machineApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
+			if err != nil {
+				return ctx, nil, nil, fmt.Errorf("cannot apply Machine status: %w", err)
+			}
+		}
+	}
+
+	return ctx, nil, nil, nil
 }
 
 func (r *OOBReconciler) processReady(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
@@ -896,6 +1028,11 @@ func (r *OOBReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
+	err = c.Watch(source.Kind(mgr.GetCache(), &metalv1alpha1.Machine{}), handler.EnqueueRequestsFromMapFunc(r.enqueueOOBFromMachine))
+	if err != nil {
+		return err
+	}
+
 	return mgr.Add(c)
 }
 
@@ -916,8 +1053,10 @@ func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object)
 	}
 	ctx = log.WithValues(ctx, "mac", mac)
 
-	oobList := metalv1alpha1.OOBList{}
-	err := r.List(ctx, &oobList, client.MatchingFields{OOBSpecMACAddress: mac})
+	var oobList metalv1alpha1.OOBList
+	err := r.List(ctx, &oobList, client.MatchingFields{
+		OOBSpecMACAddress: mac,
+	})
 	if err != nil {
 		log.Error(ctx, fmt.Errorf("cannot list OOBs: %w", err))
 		return nil
@@ -994,8 +1133,10 @@ func (r *OOBReconciler) enqueueOOBFromIP(ctx context.Context, obj client.Object)
 func (r *OOBReconciler) enqueueOOBFromOOBSecret(ctx context.Context, obj client.Object) []reconcile.Request {
 	secret := obj.(*metalv1alpha1.OOBSecret)
 
-	oobList := metalv1alpha1.OOBList{}
-	err := r.List(ctx, &oobList, client.MatchingFields{OOBSpecMACAddress: secret.Spec.MACAddress})
+	var oobList metalv1alpha1.OOBList
+	err := r.List(ctx, &oobList, client.MatchingFields{
+		OOBSpecMACAddress: secret.Spec.MACAddress,
+	})
 	if err != nil {
 		log.Error(ctx, fmt.Errorf("cannot list OOBs: %w", err))
 		return nil
@@ -1013,6 +1154,18 @@ func (r *OOBReconciler) enqueueOOBFromOOBSecret(ctx context.Context, obj client.
 	}
 
 	return reqs
+}
+
+func (r *OOBReconciler) enqueueOOBFromMachine(_ context.Context, obj client.Object) []reconcile.Request {
+	machine := obj.(*metalv1alpha1.Machine)
+
+	return []reconcile.Request{
+		{
+			NamespacedName: types.NamespacedName{
+				Name: machine.Spec.OOBRef.Name,
+			},
+		},
+	}
 }
 
 func (r *OOBReconciler) ensureTemporaryPassword(ctx context.Context) error {

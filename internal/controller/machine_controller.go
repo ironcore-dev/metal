@@ -17,6 +17,12 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 
+const (
+	MachineFieldManager   = "metal.ironcore.dev/machine"
+	MachineFinalizer      = "metal.ironcore.dev/machine"
+	MachineSpecOOBRefName = ".spec.oobRef.Name"
+)
+
 func NewMachineReconciler() (*MachineReconciler, error) {
 	return &MachineReconciler{}, nil
 }

@@ -83,11 +83,6 @@ func (b *FakeBMC) DeleteUsers(_ context.Context, _ *regexp.Regexp) error {
 }
 
 func (b *FakeBMC) ReadInfo(_ context.Context) (Info, error) {
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return Info{}, fmt.Errorf("cannot generate UUID: %w", err)
-	}
-
 	return Info{
 		Type:            TypeMachine,
 		Manufacturer:    "Fake",
@@ -95,7 +90,7 @@ func (b *FakeBMC) ReadInfo(_ context.Context) (Info, error) {
 		FirmwareVersion: "1",
 		Machines: []Machine{
 			{
-				UUID:         id.String(),
+				UUID:         uuid.NewSHA1(uuid.NameSpaceOID, []byte("Fake")).String(),
 				Manufacturer: "Fake",
 				SKU:          "Fake-0",
 				SerialNumber: "1",

@@ -31,9 +31,9 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 
 const (
-	MachineClaimFieldManager   = "metal.ironcore.dev/machineclaim"
-	MachineClaimFinalizer      = "metal.ironcore.dev/machineclaim"
-	MachineClaimSpecMachineRef = ".spec.machineRef.Name"
+	MachineClaimFieldManager       = "metal.ironcore.dev/machineclaim"
+	MachineClaimFinalizer          = "metal.ironcore.dev/machineclaim"
+	MachineClaimSpecMachineRefName = ".spec.machineRef.Name"
 )
 
 func NewMachineClaimReconciler() (*MachineClaimReconciler, error) {
@@ -393,7 +393,9 @@ func (r *MachineClaimReconciler) enqueueMachineClaimsFromMachine(ctx context.Con
 	machine := obj.(*metalv1alpha1.Machine)
 
 	claimList := metalv1alpha1.MachineClaimList{}
-	err := r.List(ctx, &claimList, client.MatchingFields{MachineClaimSpecMachineRef: machine.Name})
+	err := r.List(ctx, &claimList, client.MatchingFields{
+		MachineClaimSpecMachineRefName: machine.Name,
+	})
 	if err != nil {
 		log.Error(ctx, fmt.Errorf("cannot list MachineClaims: %w", err))
 		return nil
