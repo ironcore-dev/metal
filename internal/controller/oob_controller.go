@@ -741,29 +741,35 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			return ctx, apply, status, nil
 		}
 
-		oob.Spec.Protocol = &a.Protocol
-		oob.Spec.Flags = a.Flags
-		defaultCreds = a.DefaultCredentials
-		oob.Status.Type = a.Type
-		log.Debug(ctx, "Setting protocol, flags, and type")
-		if apply == nil {
-			var err error
-			apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
-			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+		if !util.NilOrEqual(oob.Spec.Protocol, &a.Protocol) {
+			oob.Spec.Protocol = &a.Protocol
+			oob.Spec.Flags = a.Flags
+			defaultCreds = a.DefaultCredentials
+			log.Debug(ctx, "Setting protocol and flags")
+			if apply == nil {
+				var err error
+				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
+				if err != nil {
+					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+				}
 			}
+			apply = apply.WithSpec(util.Ensure(apply.Spec).
+				WithProtocol(metalv1alpha1apply.Protocol().
+					WithName(oob.Spec.Protocol.Name).
+					WithPort(oob.Spec.Protocol.Port)).
+				WithFlags(oob.Spec.Flags))
 		}
-		apply = apply.WithSpec(util.Ensure(apply.Spec).
-			WithProtocol(metalv1alpha1apply.Protocol().
-				WithName(oob.Spec.Protocol.Name).
-				WithPort(oob.Spec.Protocol.Port)).
-			WithFlags(oob.Spec.Flags))
-		applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
-		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+
+		if oob.Status.Type != a.Type {
+			oob.Status.Type = a.Type
+			log.Debug(ctx, "Setting type")
+			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+			}
+			status = util.Ensure(applyst.Status).
+				WithType(a.Type)
 		}
-		status = util.Ensure(applyst.Status).
-			WithType(a.Type)
 	}
 
 	b, err := bmc.NewBMC(string(oob.Spec.Protocol.Name), oob.Spec.Flags, host, oob.Spec.Protocol.Port, creds, expiration)
