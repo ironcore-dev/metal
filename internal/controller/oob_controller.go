@@ -128,7 +128,7 @@ type access struct {
 	Protocol           metalv1alpha1.Protocol `yaml:"protocol"`
 	Flags              map[string]string      `yaml:"flags"`
 	DefaultCredentials []bmc.Credentials      `yaml:"defaultCredentials"`
-	Type               bmc.Typ                `yaml:"type"`
+	Type               metalv1alpha1.OOBType  `yaml:"type"`
 }
 
 type ctxkOOBHost struct{}
@@ -709,7 +709,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		}
 	}
 
-	if oob.Spec.Protocol == nil || (creds.Username == "" && creds.Password == "") {
+	if oob.Spec.Protocol == nil || oob.Status.Type == "" || (creds.Username == "" && creds.Password == "") {
 		a, ok := r.macDB.Get(oob.Spec.MACAddress)
 		if !ok {
 			return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot find MAC address in MAC DB: %s", oob.Spec.MACAddress))
@@ -734,7 +734,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		oob.Spec.Protocol = &a.Protocol
 		oob.Spec.Flags = a.Flags
 		defaultCreds = a.DefaultCredentials
-		oob.Status.Type = metalv1alpha1.OOBType(a.Type)
+		oob.Status.Type = a.Type
 		log.Debug(ctx, "Setting protocol, flags, and type")
 		if apply == nil {
 			var err error
@@ -748,14 +748,12 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 				WithName(oob.Spec.Protocol.Name).
 				WithPort(oob.Spec.Protocol.Port)).
 			WithFlags(oob.Spec.Flags))
-		if a.Type != "" {
-			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
-			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
-			}
-			status = util.Ensure(applyst.Status).
-				WithType(metalv1alpha1.OOBType(a.Type))
+		applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
+		if err != nil {
+			return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
 		}
+		status = util.Ensure(applyst.Status).
+			WithType(a.Type)
 	}
 
 	b, err := bmc.NewBMC(string(oob.Spec.Protocol.Name), oob.Spec.Flags, host, oob.Spec.Protocol.Port, creds, expiration)
@@ -1236,6 +1234,21 @@ func loadMacDB(dbFile string) (util.PrefixMap[access], error) {
 
 	db := make(util.PrefixMap[access], len(dbf.MACs))
 	for _, m := range dbf.MACs {
+		if m.access.Protocol.Name == "" {
+			return nil, fmt.Errorf("prefix %s has no protocol name", m.Prefix)
+		}
+		if len(m.access.DefaultCredentials) == 0 {
+			return nil, fmt.Errorf("prefix %s has no default credentials", m.Prefix)
+		}
+		for _, dc := range m.access.DefaultCredentials {
+			if dc.Username == "" && dc.Password == "" {
+				return nil, fmt.Errorf("prefix %s has invalid default credentials", m.Prefix)
+			}
+		}
+		if m.access.Type == "" {
+			return nil, fmt.Errorf("prefix %s has no type", m.Prefix)
+		}
+
 		db[m.Prefix] = m.access
 	}
 
