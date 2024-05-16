@@ -19,7 +19,7 @@ require (
 	github.com/stmcginnis/gofish v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.0
-	k8s.io/apimachinery v0.30.0
+	k8s.io/apimachinery v0.30.1
 	k8s.io/client-go v0.30.0
 	k8s.io/code-generator v0.30.0
 	k8s.io/klog/v2 v2.120.1
