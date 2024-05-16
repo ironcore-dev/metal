@@ -418,6 +418,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: asn
       type:
         scalar: string
+    - name: cleanupRequired
+      type:
+        scalar: boolean
     - name: inventoryRef
       type:
         namedType: io.k8s.api.core.v1.LocalObjectReference
@@ -430,6 +433,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: machineClaimRef
       type:
         namedType: io.k8s.api.core.v1.ObjectReference
+    - name: maintenance
+      type:
+        scalar: boolean
     - name: oobRef
       type:
         namedType: io.k8s.api.core.v1.LocalObjectReference

@@ -21,6 +21,8 @@ type MachineSpecApplyConfiguration struct {
 	ASN                *string                  `json:"asn,omitempty"`
 	Power              *v1alpha1.Power          `json:"power,omitempty"`
 	LocatorLED         *v1alpha1.LED            `json:"locatorLED,omitempty"`
+	CleanupRequired    *bool                    `json:"cleanupRequired,omitempty"`
+	Maintenance        *bool                    `json:"maintenance,omitempty"`
 }
 
 // MachineSpecApplyConfiguration constructs an declarative configuration of the MachineSpec type for use with
@@ -90,5 +92,21 @@ func (b *MachineSpecApplyConfiguration) WithPower(value v1alpha1.Power) *Machine
 // If called multiple times, the LocatorLED field is set to the value of the last call.
 func (b *MachineSpecApplyConfiguration) WithLocatorLED(value v1alpha1.LED) *MachineSpecApplyConfiguration {
 	b.LocatorLED = &value
+	return b
+}
+
+// WithCleanupRequired sets the CleanupRequired field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the CleanupRequired field is set to the value of the last call.
+func (b *MachineSpecApplyConfiguration) WithCleanupRequired(value bool) *MachineSpecApplyConfiguration {
+	b.CleanupRequired = &value
+	return b
+}
+
+// WithMaintenance sets the Maintenance field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Maintenance field is set to the value of the last call.
+func (b *MachineSpecApplyConfiguration) WithMaintenance(value bool) *MachineSpecApplyConfiguration {
+	b.Maintenance = &value
 	return b
 }

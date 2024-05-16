@@ -1481,6 +1481,18 @@ func schema_ironcore_dev_metal_api_v1alpha1_MachineSpec(ref common.ReferenceCall
 							Format: "",
 						},
 					},
+					"cleanupRequired": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"maintenance": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"uuid", "oobRef"},
 			},

@@ -4,6 +4,7 @@
 package controller
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/google/uuid"
@@ -102,7 +103,7 @@ var _ = Describe("Machine Controller", func() {
 			Eventually(UpdateStatus(&oob, func() {
 				oob.Status.Manufacturer = "Sample"
 				oob.Status.SerialNumber = "1234"
-				oob.Status.SKU = "1"
+				// oob.Status.SKU = "1"
 			})).Should(Succeed())
 
 			By("creating a new Machine")
@@ -166,7 +167,7 @@ var _ = Describe("Machine Controller", func() {
 			Eventually(UpdateStatus(&oob, func() {
 				oob.Status.Manufacturer = "Sample"
 				oob.Status.SerialNumber = "1234"
-				oob.Status.SKU = "1"
+				// oob.Status.SKU = "1"
 			})).Should(Succeed())
 
 			By("preparing inventory object")
@@ -205,6 +206,9 @@ var _ = Describe("Machine Controller", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "test-",
 					Namespace:    ns.GetName(),
+					Labels: map[string]string{
+						fmt.Sprintf("%s%s", MachineSizeLabelPrefix, "m5large"): "true",
+					},
 				},
 				Spec: metalv1alpha1.MachineSpec{
 					UUID: uuid.NewString(),
@@ -229,7 +233,7 @@ var _ = Describe("Machine Controller", func() {
 		It("should fill status from inventory", func(ctx SpecContext) {
 			Eventually(func(g Gomega) {
 				g.Expect(Object(&machine)).Should(Succeed())
-				g.Expect(machine).Should(HaveField("Status.State", Equal("Initial")))
+				g.Expect(machine).Should(HaveField("Status.State", Equal(metalv1alpha1.MachineStateAvailable)))
 				idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
 					return c.Type == MachineInventoriedConditionType
 				})
@@ -243,7 +247,7 @@ var _ = Describe("Machine Controller", func() {
 		It("should update network interfaces from inventory", func(ctx SpecContext) {
 			Eventually(func(g Gomega) {
 				g.Expect(Object(&machine)).Should(Succeed())
-				g.Expect(machine).Should(HaveField("Status.State", Equal("Initial")))
+				g.Expect(machine).Should(HaveField("Status.State", Equal(metalv1alpha1.MachineStateAvailable)))
 				idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
 					return c.Type == MachineInventoriedConditionType
 				})
@@ -264,7 +268,7 @@ var _ = Describe("Machine Controller", func() {
 			})).Should(Succeed())
 			Eventually(func(g Gomega) {
 				g.Expect(Object(&machine)).Should(Succeed())
-				g.Expect(machine).Should(HaveField("Status.State", Equal("Initial")))
+				g.Expect(machine).Should(HaveField("Status.State", Equal(metalv1alpha1.MachineStateAvailable)))
 				idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
 					return c.Type == MachineInventoriedConditionType
 				})
