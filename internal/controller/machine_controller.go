@@ -62,6 +62,8 @@ const (
 	MachineReadyConditionNegReason  = "MachineNotReady"
 	MachineReadyConditionNegMessage = "Machine not ready"
 	MachineReadyConditionPosMessage = "Machine ready"
+
+	MachineSpecOOBRefName = ".spec.oobRef.Name"
 )
 
 func NewMachineReconciler() (*MachineReconciler, error) {
@@ -125,7 +127,7 @@ func (r *MachineReconciler) initialize(ctx context.Context, machine *metalv1alph
 	conditionBuilder := factory.NewConditionBuilder(baseCondition.DeepCopy())
 	statusTransition := false
 
-	key := types.NamespacedName{Name: machine.Spec.OOBRef.Name, Namespace: machine.GetNamespace()}
+	key := types.NamespacedName{Name: machine.Spec.OOBRef.Name}
 	err := r.Get(ctx, key, &oob)
 	switch {
 	case err != nil:
@@ -138,7 +140,6 @@ func (r *MachineReconciler) initialize(ctx context.Context, machine *metalv1alph
 	case oob.Status.Manufacturer != "" && oob.Status.SerialNumber != "":
 		machine.Status.Manufacturer = oob.Status.Manufacturer
 		machine.Status.SerialNumber = oob.Status.SerialNumber
-		// machine.Status.SKU = oob.Status.SKU
 		conditionBuilder = conditionBuilder.
 			AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
 			AddProperty(factory.ConditionReason(MachineInitializedConditionPosReason)).
@@ -171,30 +172,38 @@ func (r *MachineReconciler) inventorize(ctx context.Context, machine *metalv1alp
 	conditionBuilder := factory.NewConditionBuilder(baseCondition.DeepCopy())
 	statusTransition := false
 
-	key := types.NamespacedName{Name: machine.Spec.InventoryRef.Name, Namespace: machine.GetNamespace()}
-	err := r.Get(ctx, key, &inventory)
-	switch {
-	case err != nil:
-		log.Error(ctx, err, "failed to get inventory object")
+	if machine.Spec.InventoryRef == nil {
 		conditionBuilder = conditionBuilder.
 			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
 			AddProperty(factory.ConditionReason(MachineInventoriedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(fmt.Sprintf("Cannot get Inventory object: %v", err)))
+			AddProperty(factory.ConditionMessage(MachineInventoriedConditionNegMessage))
 		statusTransition = baseCondition.Status == metav1.ConditionTrue
-	default:
-		networkInterfaces := make([]metalv1alpha1.MachineNetworkInterface, len(inventory.Spec.NICs))
-		for _, nic := range inventory.Spec.NICs {
-			networkInterfaces = append(networkInterfaces, metalv1alpha1.MachineNetworkInterface{
-				Name:       nic.Name,
-				MacAddress: nic.MACAddress,
-			})
+	} else {
+		key := types.NamespacedName{Name: machine.Spec.InventoryRef.Name, Namespace: machine.GetNamespace()}
+		err := r.Get(ctx, key, &inventory)
+		switch {
+		case err != nil:
+			log.Error(ctx, err, "failed to get inventory object")
+			conditionBuilder = conditionBuilder.
+				AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
+				AddProperty(factory.ConditionReason(MachineInventoriedConditionNegReason)).
+				AddProperty(factory.ConditionMessage(fmt.Sprintf("Cannot get Inventory object: %v", err)))
+			statusTransition = baseCondition.Status == metav1.ConditionTrue
+		default:
+			networkInterfaces := make([]metalv1alpha1.MachineNetworkInterface, len(inventory.Spec.NICs))
+			for _, nic := range inventory.Spec.NICs {
+				networkInterfaces = append(networkInterfaces, metalv1alpha1.MachineNetworkInterface{
+					Name:       nic.Name,
+					MacAddress: nic.MACAddress,
+				})
+			}
+			machine.Status.NetworkInterfaces = networkInterfaces
+			conditionBuilder = conditionBuilder.
+				AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
+				AddProperty(factory.ConditionReason(MachineInventoriedConditionPosReason)).
+				AddProperty(factory.ConditionMessage(MachineInventoriedConditionPosMessage))
+			statusTransition = baseCondition.Status == metav1.ConditionFalse
 		}
-		machine.Status.NetworkInterfaces = networkInterfaces
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
-			AddProperty(factory.ConditionReason(MachineInventoriedConditionPosReason)).
-			AddProperty(factory.ConditionMessage(MachineInventoriedConditionPosMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionFalse
 	}
 	if statusTransition {
 		conditionBuilder = conditionBuilder.
@@ -483,7 +492,7 @@ func convertToApplyConfiguration(machine *metalv1alpha1.Machine) *metalv1alpha1a
 		nicApplyList = append(nicApplyList, nicApply)
 	}
 
-	conditionsApply := make([]*v1.ConditionApplyConfiguration, len(machine.Status.Conditions))
+	conditionsApply := make([]*v1.ConditionApplyConfiguration, 0)
 	for _, c := range machine.Status.Conditions {
 		conditionApply := v1.Condition().
 			WithType(c.Type).

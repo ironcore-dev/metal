@@ -36,7 +36,6 @@ var _ = Describe("Machine Controller", func() {
 			machine := metalv1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "test-",
-					Namespace:    ns.GetName(),
 				},
 				Spec: metalv1alpha1.MachineSpec{
 					UUID: uuid.NewString(),
@@ -93,24 +92,22 @@ var _ = Describe("Machine Controller", func() {
 			oob = metalv1alpha1.OOB{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "sample-oob-",
-					Namespace:    ns.GetName(),
 				},
 				Spec: metalv1alpha1.OOBSpec{
 					MACAddress: "000000000001",
 				},
 			}
 			Expect(k8sClient.Create(ctx, &oob)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, &oob)
 			Eventually(UpdateStatus(&oob, func() {
 				oob.Status.Manufacturer = "Sample"
 				oob.Status.SerialNumber = "1234"
-				// oob.Status.SKU = "1"
 			})).Should(Succeed())
 
 			By("creating a new Machine")
 			machine = metalv1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "test-",
-					Namespace:    ns.GetName(),
 				},
 				Spec: metalv1alpha1.MachineSpec{
 					UUID: uuid.NewString(),
@@ -123,12 +120,7 @@ var _ = Describe("Machine Controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, &machine)).Should(Succeed())
-		})
-
-		JustAfterEach(func(ctx SpecContext) {
-			By("removing related objects")
-			Expect(k8sClient.Delete(ctx, &oob)).Should(Succeed())
-			Expect(k8sClient.Delete(ctx, &machine)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, &machine)
 		})
 
 		It("should fulfill status from oob", func() {
@@ -157,17 +149,16 @@ var _ = Describe("Machine Controller", func() {
 			oob = metalv1alpha1.OOB{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "sample-oob-",
-					Namespace:    ns.GetName(),
 				},
 				Spec: metalv1alpha1.OOBSpec{
 					MACAddress: "000000000001",
 				},
 			}
 			Expect(k8sClient.Create(ctx, &oob)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, &oob)
 			Eventually(UpdateStatus(&oob, func() {
 				oob.Status.Manufacturer = "Sample"
 				oob.Status.SerialNumber = "1234"
-				// oob.Status.SKU = "1"
 			})).Should(Succeed())
 
 			By("preparing inventory object")
@@ -200,12 +191,12 @@ var _ = Describe("Machine Controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, &inventory)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, &inventory)
 
 			By("creating a new Machine")
 			machine = metalv1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "test-",
-					Namespace:    ns.GetName(),
 					Labels: map[string]string{
 						fmt.Sprintf("%s%s", MachineSizeLabelPrefix, "m5large"): "true",
 					},
@@ -221,13 +212,7 @@ var _ = Describe("Machine Controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, &machine)).Should(Succeed())
-		})
-
-		JustAfterEach(func(ctx SpecContext) {
-			By("removing related objects")
-			Expect(k8sClient.Delete(ctx, &oob)).Should(Succeed())
-			Expect(k8sClient.Delete(ctx, &inventory)).Should(Succeed())
-			Expect(k8sClient.Delete(ctx, &machine)).Should(Succeed())
+			DeferCleanup(k8sClient.Delete, &machine)
 		})
 
 		It("should fill status from inventory", func(ctx SpecContext) {
