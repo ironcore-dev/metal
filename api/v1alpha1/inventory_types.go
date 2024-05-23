@@ -402,13 +402,13 @@ type InventoryStatuses struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
 // +kubebuilder:printcolumn:name="Hostname",type=string,JSONPath=`.spec.host.name`,description="Hostname"
 // +kubebuilder:printcolumn:name="Cores",type=string,JSONPath=`.status.computed.default.cpus.cores`,description="Total amount of cores"
 // +kubebuilder:printcolumn:name="Memory",type=integer,JSONPath=`.spec.memory.total`,description="RAM amount in bytes"
 // +kubebuilder:printcolumn:name="Disks",type=string,JSONPath=`.status.computed.default.blocks.count`,description="Hardware disk count"
 // +kubebuilder:printcolumn:name="Storage",type=string,JSONPath=`.status.computed.default.blocks.capacity`,description="Total amount of disk capacity"
 // +kubebuilder:printcolumn:name="NICs",type=string,JSONPath=`.status.computed.default.nics.count`,description="Total amount of hardware network interfaces"
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +genclient
 
 // Inventory is the Schema for the inventories API.
@@ -421,7 +421,6 @@ type Inventory struct {
 }
 
 // +kubebuilder:object:root=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // InventoryList contains a list of Inventory.
 type InventoryList struct {
