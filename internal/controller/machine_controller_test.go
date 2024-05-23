@@ -16,19 +16,8 @@ import (
 	. "sigs.k8s.io/controller-runtime/pkg/envtest/komega"
 )
 
-var _ = Describe("Machine Controller", func() {
-	var ns *v1.Namespace
-
-	BeforeEach(func(ctx SpecContext) {
-		ns = &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: "test-",
-			},
-		}
-		Expect(k8sClient.Create(ctx, ns)).Should(Succeed())
-		DeferCleanup(k8sClient.Delete, ns)
-	})
-
+// nolint: dupl
+var _ = Describe("Machine Controller", Serial, func() {
 	Context("when related resources not exist", func() {
 		It("should fill conditions with status False", func(ctx SpecContext) {
 			var idx int
@@ -100,8 +89,8 @@ var _ = Describe("Machine Controller", func() {
 			Expect(k8sClient.Create(ctx, &oob)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, &oob)
 			Eventually(UpdateStatus(&oob, func() {
-				oob.Status.Manufacturer = "Sample"
-				oob.Status.SerialNumber = "1234"
+				oob.Status.Manufacturer = manufacturer
+				oob.Status.SerialNumber = serialNumber
 			})).Should(Succeed())
 
 			By("creating a new Machine")
@@ -157,22 +146,21 @@ var _ = Describe("Machine Controller", func() {
 			Expect(k8sClient.Create(ctx, &oob)).Should(Succeed())
 			DeferCleanup(k8sClient.Delete, &oob)
 			Eventually(UpdateStatus(&oob, func() {
-				oob.Status.Manufacturer = "Sample"
-				oob.Status.SerialNumber = "1234"
+				oob.Status.Manufacturer = manufacturer
+				oob.Status.SerialNumber = serialNumber
 			})).Should(Succeed())
 
 			By("preparing inventory object")
 			inventory = metalv1alpha1.Inventory{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "sample-inventory-",
-					Namespace:    ns.GetName(),
 				},
 				Spec: metalv1alpha1.InventorySpec{
 					System: &metalv1alpha1.SystemSpec{
 						ID:           uuid.NewString(),
-						Manufacturer: "Sample",
+						Manufacturer: manufacturer,
 						ProductSKU:   "1",
-						SerialNumber: "1234",
+						SerialNumber: serialNumber,
 					},
 					Blocks: make([]metalv1alpha1.BlockSpec, 0),
 					Memory: &metalv1alpha1.MemorySpec{Total: uint64(1)},

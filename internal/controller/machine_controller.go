@@ -161,6 +161,7 @@ func (r *MachineReconciler) initialize(ctx context.Context, machine *metalv1alph
 			AddProperty(factory.ObservedGeneration(machine.Generation))
 	}
 	machine.Status.Conditions[idx] = *conditionBuilder.Build()
+	machine.Status.State = metalv1alpha1.MachineStateInitial
 }
 
 func (r *MachineReconciler) inventorize(ctx context.Context, machine *metalv1alpha1.Machine) {
@@ -179,7 +180,7 @@ func (r *MachineReconciler) inventorize(ctx context.Context, machine *metalv1alp
 			AddProperty(factory.ConditionMessage(MachineInventoriedConditionNegMessage))
 		statusTransition = baseCondition.Status == metav1.ConditionTrue
 	} else {
-		key := types.NamespacedName{Name: machine.Spec.InventoryRef.Name, Namespace: machine.GetNamespace()}
+		key := types.NamespacedName{Name: machine.Spec.InventoryRef.Name}
 		err := r.Get(ctx, key, &inventory)
 		switch {
 		case err != nil:
@@ -190,11 +191,11 @@ func (r *MachineReconciler) inventorize(ctx context.Context, machine *metalv1alp
 				AddProperty(factory.ConditionMessage(fmt.Sprintf("Cannot get Inventory object: %v", err)))
 			statusTransition = baseCondition.Status == metav1.ConditionTrue
 		default:
-			networkInterfaces := make([]metalv1alpha1.MachineNetworkInterface, len(inventory.Spec.NICs))
+			networkInterfaces := make([]metalv1alpha1.MachineNetworkInterface, 0, len(inventory.Spec.NICs))
 			for _, nic := range inventory.Spec.NICs {
 				networkInterfaces = append(networkInterfaces, metalv1alpha1.MachineNetworkInterface{
 					Name:       nic.Name,
-					MacAddress: nic.MACAddress,
+					MacAddress: convertMacAddress(nic.MACAddress),
 				})
 			}
 			machine.Status.NetworkInterfaces = networkInterfaces
@@ -439,8 +440,7 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				if machine.Spec.UUID == source.Name {
 					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
-							Name:      machine.GetName(),
-							Namespace: machine.GetNamespace(),
+							Name: machine.GetName(),
 						}})
 					break
 				}
@@ -478,7 +478,7 @@ func convertToApplyConfiguration(machine *metalv1alpha1.Machine) *metalv1alpha1a
 		specApply = specApply.WithLoopbackAddressRef(*machine.Spec.LoopbackAddressRef)
 	}
 
-	nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, len(machine.Status.NetworkInterfaces))
+	nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0, len(machine.Status.NetworkInterfaces))
 	for _, nic := range machine.Status.NetworkInterfaces {
 		nicApply := metalv1alpha1apply.MachineNetworkInterface().
 			WithName(nic.Name).
@@ -492,7 +492,7 @@ func convertToApplyConfiguration(machine *metalv1alpha1.Machine) *metalv1alpha1a
 		nicApplyList = append(nicApplyList, nicApply)
 	}
 
-	conditionsApply := make([]*v1.ConditionApplyConfiguration, 0)
+	conditionsApply := make([]*v1.ConditionApplyConfiguration, 0, len(machine.Status.Conditions))
 	for _, c := range machine.Status.Conditions {
 		conditionApply := v1.Condition().
 			WithType(c.Type).
@@ -521,4 +521,11 @@ func convertToApplyConfiguration(machine *metalv1alpha1.Machine) *metalv1alpha1a
 	}
 
 	return machineApply.WithSpec(specApply).WithStatus(statusApply)
+}
+
+func convertMacAddress(src string) string {
+	var mac = src
+	mac = strings.ReplaceAll(mac, ":", "")
+	mac = strings.ReplaceAll(mac, "-", "")
+	return mac
 }
