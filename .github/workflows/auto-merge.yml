@@ -14,7 +14,7 @@ jobs:
     if: ${{ github.event.pull_request.draft == false }}
     steps:
     - name: Set up CLI
-      uses: ksivamuthu/actions-setup-gh-cli@v2
+      uses: ksivamuthu/actions-setup-gh-cli@v3
     - name: Enable auto-merge
       run: gh pr merge --auto --squash "$PR_URL"
       env:
