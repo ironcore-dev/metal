@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ironcore-dev/ipam v0.2.1
-	github.com/onsi/ginkgo/v2 v2.17.3
+	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/rs/zerolog v1.32.0
 	github.com/sethvargo/go-password v0.3.0
