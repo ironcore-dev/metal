@@ -27,7 +27,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.18.2
 	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240423173400-ed81fa696dea
 	sigs.k8s.io/controller-tools v0.15.0
-	sigs.k8s.io/kustomize/kustomize/v5 v5.4.1
+	sigs.k8s.io/kustomize/kustomize/v5 v5.4.2
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1
 )
 
@@ -249,8 +249,8 @@ require (
 	mvdan.cc/gofumpt v0.6.0 // indirect
 	mvdan.cc/unparam v0.0.0-20240427195214-063aff900ca1 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
-	sigs.k8s.io/kustomize/api v0.17.1 // indirect
-	sigs.k8s.io/kustomize/cmd/config v0.14.0 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.17.0 // indirect
+	sigs.k8s.io/kustomize/api v0.17.2 // indirect
+	sigs.k8s.io/kustomize/cmd/config v0.14.1 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.17.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
