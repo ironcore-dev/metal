@@ -3,7 +3,7 @@ module github.com/ironcore-dev/metal
 go 1.22.2
 
 require (
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zerologr v1.2.3
 	github.com/golangci/golangci-lint v1.59.0
 	github.com/google/addlicense v1.1.1
