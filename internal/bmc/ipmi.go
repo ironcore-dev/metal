@@ -40,14 +40,6 @@ func (b *IPMIBMC) Tags() map[string]string {
 	return b.tags
 }
 
-func (b *IPMIBMC) PowerControl() PowerControl {
-	return b
-}
-
-func (b *IPMIBMC) RestartControl() RestartControl {
-	return b
-}
-
 func (b *IPMIBMC) Credentials() (Credentials, time.Time) {
 	return b.creds, b.exp
 }
@@ -306,7 +298,7 @@ func (b *IPMIBMC) DeleteUsers(ctx context.Context, regex *regexp.Regexp) error {
 	return nil
 }
 
-func (b *IPMIBMC) PowerOn(ctx context.Context) error {
+func (b *IPMIBMC) PowerOn(ctx context.Context, _ string) error {
 	log.Debug(ctx, "Powering on the machine")
 	_, _, err := ipmiExecuteCommand(ctx, b.host, b.port, b.creds, "ipmitool", "chassis", "power", "on")
 	if err != nil {
@@ -316,7 +308,7 @@ func (b *IPMIBMC) PowerOn(ctx context.Context) error {
 	return nil
 }
 
-func (b *IPMIBMC) Restart(ctx context.Context, immediate bool) error {
+func (b *IPMIBMC) Restart(ctx context.Context, _ string, immediate bool) error {
 	//TODO: figure out a way of doing a graceful restart via IPMI
 	if !immediate {
 		return fmt.Errorf("unable to reset the server gracefully")
@@ -329,7 +321,7 @@ func (b *IPMIBMC) Restart(ctx context.Context, immediate bool) error {
 	return nil
 }
 
-func (b *IPMIBMC) PowerOff(ctx context.Context, immediate bool) error {
+func (b *IPMIBMC) PowerOff(ctx context.Context, _ string, immediate bool) error {
 	log.Debug(ctx, "Powering off the machine")
 	how := ""
 	if immediate {

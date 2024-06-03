@@ -22,6 +22,7 @@ import (
 var _ = Describe("OOB Controller", Serial, func() {
 	mac := "aabbccddeeff"
 	timeToReady := time.Second * 3
+	shutdownTimeout := time.Second * 1
 
 	BeforeEach(func(ctx SpecContext) {
 		Eventually(ObjectList(&ipamv1alpha1.IPList{}, &client.ListOptions{
@@ -632,8 +633,295 @@ var _ = Describe("OOB Controller", Serial, func() {
 			HaveField("Status.Manufacturer", "Fake"),
 			HaveField("Status.SKU", "Fake-0"),
 			HaveField("Status.SerialNumber", "1"),
-			HaveField("Status.Power", metalv1alpha1.PowerOn),
+			HaveField("Status.Power", metalv1alpha1.PowerOff),
 			HaveField("Status.LocatorLED", metalv1alpha1.LEDOff),
+		))
+	})
+
+	It("should control locator LED", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+
+		By("Creating an IP")
+		ip := &ipamv1alpha1.IP{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "test-",
+				Namespace:    OOBTemporaryNamespaceHack,
+				Labels: map[string]string{
+					OOBIPMacLabel: mac,
+					"test":        "test",
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
+
+		By("Patching IP reservation and state")
+		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(UpdateStatus(ip, func() {
+			ip.Status.Reserved = ipAddr
+			ip.Status.State = ipamv1alpha1.CFinishedIPState
+		})).Should(Succeed())
+
+		By("Expecting the OOB to have the correct info")
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Type", metalv1alpha1.OOBTypeMachine),
+			HaveField("Status.State", metalv1alpha1.OOBStateReady),
+			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
+		))
+
+		By("Listing machines")
+		machines := &metalv1alpha1.MachineList{}
+		Eventually(ObjectList(machines)).Should(HaveField("Items", HaveLen(1)))
+		machine := &machines.Items[0]
+
+		By("Setting LED to lit")
+		Eventually(Update(machine, func() {
+			machine.Spec.LocatorLED = metalv1alpha1.LEDLit
+		})).Should(Succeed())
+
+		By("Expecting LED to be lit")
+		Eventually(Object(machine)).Should(SatisfyAll(
+			HaveField("Status.LocatorLED", metalv1alpha1.LEDLit),
+		))
+
+		By("Setting LED to blinking")
+		Eventually(Update(machine, func() {
+			machine.Spec.LocatorLED = metalv1alpha1.LEDBlinking
+		})).Should(Succeed())
+
+		By("Expecting LED to be blinking")
+		Eventually(Object(machine)).Should(SatisfyAll(
+			HaveField("Status.LocatorLED", metalv1alpha1.LEDBlinking),
+		))
+
+		By("Setting LED to off")
+		Eventually(Update(machine, func() {
+			machine.Spec.LocatorLED = metalv1alpha1.LEDOff
+		})).Should(Succeed())
+
+		By("Expecting LED to be off")
+		Eventually(Object(machine)).Should(SatisfyAll(
+			HaveField("Status.LocatorLED", metalv1alpha1.LEDOff),
+		))
+	})
+
+	It("should control power", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+
+		By("Creating an IP")
+		ip := &ipamv1alpha1.IP{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "test-",
+				Namespace:    OOBTemporaryNamespaceHack,
+				Labels: map[string]string{
+					OOBIPMacLabel: mac,
+					"test":        "test",
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
+
+		By("Patching IP reservation and state")
+		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(UpdateStatus(ip, func() {
+			ip.Status.Reserved = ipAddr
+			ip.Status.State = ipamv1alpha1.CFinishedIPState
+		})).Should(Succeed())
+
+		By("Expecting the OOB to have the correct info")
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Type", metalv1alpha1.OOBTypeMachine),
+			HaveField("Status.State", metalv1alpha1.OOBStateReady),
+			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
+		))
+
+		By("Listing machines")
+		machines := &metalv1alpha1.MachineList{}
+		Eventually(ObjectList(machines)).Should(HaveField("Items", HaveLen(1)))
+		machine := &machines.Items[0]
+
+		By("Setting power to on")
+		Eventually(Update(machine, func() {
+			machine.Spec.Power = metalv1alpha1.PowerOn
+		})).Should(Succeed())
+
+		By("Expecting machine to be on")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Power", metalv1alpha1.PowerOn),
+		))
+
+		By("Setting power to off")
+		Eventually(Update(machine, func() {
+			machine.Spec.Power = metalv1alpha1.PowerOff
+		})).Should(Succeed())
+
+		By("Expecting machine to be off and annotation to be cleared")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			Not(HaveField("Annotations", HaveKey(metalv1alpha1.MachineOperationKeyName))),
+			HaveField("Status.Power", metalv1alpha1.PowerOff),
+		))
+
+		By("Setting power to on")
+		Eventually(Update(machine, func() {
+			machine.Spec.Power = metalv1alpha1.PowerOn
+		})).Should(Succeed())
+
+		By("Expecting machine to be on")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Power", metalv1alpha1.PowerOn),
+		))
+
+		By("Setting power to force off")
+		Eventually(Update(machine, func() {
+			if machine.Annotations == nil {
+				machine.Annotations = make(map[string]string, 1)
+			}
+			machine.Annotations[metalv1alpha1.MachineOperationKeyName] = metalv1alpha1.MachineOperationForceOff
+			machine.Spec.Power = metalv1alpha1.PowerOff
+		})).Should(Succeed())
+
+		By("Expecting machine to be off and annotation to be cleared")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			Not(HaveField("Annotations", HaveKey(metalv1alpha1.MachineOperationKeyName))),
+			HaveField("Status.Power", metalv1alpha1.PowerOff),
+		))
+
+		By("Setting power to on")
+		Eventually(Update(machine, func() {
+			machine.Spec.Power = metalv1alpha1.PowerOn
+		})).Should(Succeed())
+
+		By("Expecting machine to be on")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Power", metalv1alpha1.PowerOn),
+		))
+
+		By("Setting power to off while the machine is hanging")
+		Eventually(Update(oob, func() {
+			oob.Spec.Flags = map[string]string{
+				"fake.power": "stuck",
+			}
+		})).Should(Succeed())
+		Eventually(Update(machine, func() {
+			machine.Spec.Power = metalv1alpha1.PowerOff
+		})).Should(Succeed())
+
+		By("Expecting machine to be off and annotation to be cleared")
+		Eventually(Object(machine), timeToReady+shutdownTimeout).Should(SatisfyAll(
+			Not(HaveField("Annotations", HaveKey(metalv1alpha1.MachineOperationKeyName))),
+			HaveField("Status.Power", metalv1alpha1.PowerOff),
+		))
+	})
+
+	It("should restart", func(ctx SpecContext) {
+		oob := &metalv1alpha1.OOB{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: mac,
+			},
+		}
+
+		By("Creating an IP")
+		ip := &ipamv1alpha1.IP{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "test-",
+				Namespace:    OOBTemporaryNamespaceHack,
+				Labels: map[string]string{
+					OOBIPMacLabel: mac,
+					"test":        "test",
+				},
+			},
+		}
+		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
+
+		By("Patching IP reservation and state")
+		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
+		Expect(err).NotTo(HaveOccurred())
+		Eventually(UpdateStatus(ip, func() {
+			ip.Status.Reserved = ipAddr
+			ip.Status.State = ipamv1alpha1.CFinishedIPState
+		})).Should(Succeed())
+
+		By("Expecting the OOB to have the correct info")
+		Eventually(Object(oob), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Type", metalv1alpha1.OOBTypeMachine),
+			HaveField("Status.State", metalv1alpha1.OOBStateReady),
+			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
+		))
+
+		By("Listing machines")
+		machines := &metalv1alpha1.MachineList{}
+		Eventually(ObjectList(machines)).Should(HaveField("Items", HaveLen(1)))
+		machine := &machines.Items[0]
+
+		By("Setting power to on")
+		Eventually(Update(machine, func() {
+			machine.Spec.Power = metalv1alpha1.PowerOn
+		})).Should(Succeed())
+
+		By("Expecting machine to be on")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Power", metalv1alpha1.PowerOn),
+		))
+
+		By("Setting restart annotation")
+		Eventually(Update(machine, func() {
+			if machine.Annotations == nil {
+				machine.Annotations = make(map[string]string, 1)
+			}
+			machine.Annotations[metalv1alpha1.MachineOperationKeyName] = metalv1alpha1.MachineOperationRestart
+		})).Should(Succeed())
+
+		By("Expecting machine to be on and annotation to be cleared")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			Not(HaveField("Annotations", HaveKey(metalv1alpha1.MachineOperationKeyName))),
+			HaveField("Status.Power", metalv1alpha1.PowerOn),
+		))
+
+		By("Setting force restart annotation")
+		Eventually(Update(machine, func() {
+			if machine.Annotations == nil {
+				machine.Annotations = make(map[string]string, 1)
+			}
+			machine.Annotations[metalv1alpha1.MachineOperationKeyName] = metalv1alpha1.MachineOperationForceRestart
+		})).Should(Succeed())
+
+		By("Expecting machine to be on and annotation to be cleared")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			Not(HaveField("Annotations", HaveKey(metalv1alpha1.MachineOperationKeyName))),
+			HaveField("Status.Power", metalv1alpha1.PowerOn),
+		))
+
+		By("Setting power to off")
+		Eventually(Update(machine, func() {
+			machine.Spec.Power = metalv1alpha1.PowerOff
+		})).Should(Succeed())
+
+		By("Expecting machine to be off")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			HaveField("Status.Power", metalv1alpha1.PowerOff),
+		))
+
+		By("Setting restart annotation")
+		Eventually(Update(machine, func() {
+			if machine.Annotations == nil {
+				machine.Annotations = make(map[string]string, 1)
+			}
+			machine.Annotations[metalv1alpha1.MachineOperationKeyName] = metalv1alpha1.MachineOperationRestart
+		})).Should(Succeed())
+
+		By("Expecting machine to be off and annotation to be cleared")
+		Eventually(Object(machine), timeToReady).Should(SatisfyAll(
+			Not(HaveField("Annotations", HaveKey(metalv1alpha1.MachineOperationKeyName))),
+			HaveField("Status.Power", metalv1alpha1.PowerOff),
 		))
 	})
 })

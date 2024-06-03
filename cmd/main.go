@@ -52,6 +52,7 @@ type params struct {
 	oobIpLabelSelector           string
 	oobMacDB                     string
 	oobCredsRenewalBeforeExpiry  time.Duration
+	oobShutdownTimeout           time.Duration
 	oobUsernamePrefix            string
 	oobTemporaryPasswordSecret   string
 }
@@ -75,6 +76,7 @@ func parseCmdLine() params {
 	pflag.String("oob-ip-label-selector", "", "OOB: Filter IP objects by labels.")
 	pflag.String("oob-mac-db", "", "OOB: Load MAC DB from file.")
 	pflag.Duration("oob-creds-renewal-before-expiry", time.Hour*24*7, "OOB: Renew expiring credentials this long before they expire.")
+	pflag.Duration("oob-shutdown-timeout", 7*time.Minute, "Wait this long before issuing an immediate shutdown, if graceful shutdown has not succeeded.")
 	pflag.String("oob-username-prefix", "metal-", "OOB: Use a prefix when creating BMC users. Cannot be empty.")
 	pflag.String("oob-temporary-password-secret", "bmc-temporary-password", "OOB: Secret to store a temporary password in. Will be generated if it does not exist.")
 
@@ -109,6 +111,7 @@ func parseCmdLine() params {
 		oobIpLabelSelector:           viper.GetString("oob-ip-label-selector"),
 		oobMacDB:                     viper.GetString("oob-mac-db"),
 		oobCredsRenewalBeforeExpiry:  viper.GetDuration("oob-creds-renewal-before-expiry"),
+		oobShutdownTimeout:           viper.GetDuration("oob-shutdown-timeout"),
 		oobUsernamePrefix:            viper.GetString("oob-username-prefix"),
 		oobTemporaryPasswordSecret:   viper.GetString("oob-temporary-password-secret"),
 	}
@@ -268,7 +271,7 @@ func main() {
 
 	if p.enableOOBController {
 		var oobReconciler *controller.OOBReconciler
-		oobReconciler, err = controller.NewOOBReconciler(p.systemNamespace, p.oobIpLabelSelector, p.oobMacDB, p.oobCredsRenewalBeforeExpiry, p.oobUsernamePrefix, p.oobTemporaryPasswordSecret)
+		oobReconciler, err = controller.NewOOBReconciler(p.systemNamespace, p.oobIpLabelSelector, p.oobMacDB, p.oobCredsRenewalBeforeExpiry, p.oobShutdownTimeout, p.oobUsernamePrefix, p.oobTemporaryPasswordSecret)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
 			exitCode = 1

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,7 +17,38 @@ func RegisterFake() {
 	registerBMC(fakeBMC)
 }
 
+var fakeGlobalState struct {
+	sync.RWMutex
+	s map[string]fakeState
+}
+
+type fakeState map[string]fakeMachine
+
+type fakeMachine struct {
+	power Power
+	led   LED
+}
+
 func fakeBMC(tags map[string]string, host string, port int32, creds Credentials, exp time.Time) BMC {
+	if host == "" {
+		return &FakeBMC{}
+	}
+
+	fakeGlobalState.Lock()
+	defer fakeGlobalState.Unlock()
+	if fakeGlobalState.s == nil {
+		fakeGlobalState.s = make(map[string]fakeState)
+	}
+	_, ok := fakeGlobalState.s[host]
+	if !ok {
+		fakeGlobalState.s[host] = fakeState{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte(host)).String(): fakeMachine{
+				power: PowerOff,
+				led:   LEDOff,
+			},
+		}
+	}
+
 	return &FakeBMC{
 		tags:  tags,
 		host:  host,
@@ -40,18 +72,6 @@ func (b *FakeBMC) Type() string {
 
 func (b *FakeBMC) Tags() map[string]string {
 	return b.tags
-}
-
-func (b *FakeBMC) LEDControl() LEDControl {
-	return b
-}
-
-func (b *FakeBMC) PowerControl() PowerControl {
-	return b
-}
-
-func (b *FakeBMC) RestartControl() RestartControl {
-	return b
 }
 
 func (b *FakeBMC) Credentials() (Credentials, time.Time) {
@@ -83,36 +103,104 @@ func (b *FakeBMC) DeleteUsers(_ context.Context, _ *regexp.Regexp) error {
 }
 
 func (b *FakeBMC) ReadInfo(_ context.Context) (Info, error) {
+	fakeGlobalState.RLock()
+	defer fakeGlobalState.RUnlock()
+	s, ok := fakeGlobalState.s[b.host]
+	if !ok {
+		return Info{}, fmt.Errorf("fake host has no state: %s", b.host)
+	}
+
+	machines := make([]Machine, 0, len(s))
+	for id := range s {
+		machines = append(machines, Machine{
+			UUID:         id,
+			Manufacturer: "Fake",
+			SKU:          "Fake-0",
+			SerialNumber: "1",
+			Power:        s[id].power,
+			LocatorLED:   s[id].led,
+		})
+	}
+
 	return Info{
 		Type:            TypeMachine,
 		Manufacturer:    "Fake",
 		SerialNumber:    "0",
 		FirmwareVersion: "1",
-		Machines: []Machine{
-			{
-				UUID:         uuid.NewSHA1(uuid.NameSpaceOID, []byte("Fake")).String(),
-				Manufacturer: "Fake",
-				SKU:          "Fake-0",
-				SerialNumber: "1",
-				Power:        PowerOn,
-				LocatorLED:   LEDOff,
-			},
-		},
+		Machines:        machines,
 	}, nil
 }
 
-func (b *FakeBMC) SetLocatorLED(_ context.Context, state LED) (LED, error) {
+func (b *FakeBMC) SetLocatorLED(_ context.Context, machine string, state LED) (LED, error) {
+	fakeGlobalState.Lock()
+	defer fakeGlobalState.Unlock()
+	s, ok := fakeGlobalState.s[b.host]
+	if !ok {
+		return "", fmt.Errorf("fake host %s has no state", b.host)
+	}
+	var m fakeMachine
+	m, ok = s[machine]
+	if !ok {
+		return "", fmt.Errorf("fake host %s has no machine %s", b.host, machine)
+	}
+
+	m.led = state
+	s[machine] = m
+
 	return state, nil
 }
 
-func (b *FakeBMC) PowerOn(_ context.Context) error {
+func (b *FakeBMC) PowerOn(_ context.Context, machine string) error {
+	fakeGlobalState.Lock()
+	defer fakeGlobalState.Unlock()
+	s, ok := fakeGlobalState.s[b.host]
+	if !ok {
+		return fmt.Errorf("fake host %s has no state", b.host)
+	}
+	var m fakeMachine
+	m, ok = s[machine]
+	if !ok {
+		return fmt.Errorf("fake host %s has no machine %s", b.host, machine)
+	}
+
+	m.power = PowerOn
+	s[machine] = m
+
 	return nil
 }
 
-func (b *FakeBMC) PowerOff(_ context.Context, _ bool) error {
+func (b *FakeBMC) PowerOff(_ context.Context, machine string, force bool) error {
+	fakeGlobalState.Lock()
+	defer fakeGlobalState.Unlock()
+	s, ok := fakeGlobalState.s[b.host]
+	if !ok {
+		return fmt.Errorf("fake host %s has no state", b.host)
+	}
+	var m fakeMachine
+	m, ok = s[machine]
+	if !ok {
+		return fmt.Errorf("fake host %s has no machine %s", b.host, machine)
+	}
+
+	if force || b.tags["fake.power"] != "stuck" {
+		m.power = PowerOff
+		s[machine] = m
+	}
+
 	return nil
 }
 
-func (b *FakeBMC) Restart(_ context.Context, _ bool) error {
+func (b *FakeBMC) Restart(_ context.Context, machine string, _ bool) error {
+	fakeGlobalState.RLock()
+	defer fakeGlobalState.RUnlock()
+	s, ok := fakeGlobalState.s[b.host]
+	if !ok {
+		return fmt.Errorf("fake host %s has no state", b.host)
+	}
+	_, ok = s[machine]
+	if !ok {
+		return fmt.Errorf("fake host %s has no machine %s", b.host, machine)
+	}
+
 	return nil
 }

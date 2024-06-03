@@ -66,12 +66,14 @@ const (
 	OOBErrorBadCredentials    = "BadCredentials"
 	OOBErrorBadInfo           = "BadInfo"
 	OOBErrorBadMachines       = "BadMachines"
+	OOBErrorBadMachineControl = "BadMachineControl"
 )
 
-func NewOOBReconciler(systemNamespace, ipLabelSelector, macDB string, credsRenewalBeforeExpiry time.Duration, usernamePrefix, temporaryPasswordSecret string) (*OOBReconciler, error) {
+func NewOOBReconciler(systemNamespace, ipLabelSelector, macDB string, credsRenewalBeforeExpiry, shutdownTimeout time.Duration, usernamePrefix, temporaryPasswordSecret string) (*OOBReconciler, error) {
 	r := &OOBReconciler{
 		systemNamespace:              systemNamespace,
 		credsRenewalTimeBeforeExpiry: credsRenewalBeforeExpiry,
+		shutdownTimeout:              shutdownTimeout,
 		usernamePrefix:               usernamePrefix,
 		temporaryPasswordSecret:      temporaryPasswordSecret,
 	}
@@ -116,6 +118,7 @@ type OOBReconciler struct {
 	systemNamespace              string
 	ipLabelSelector              labels.Selector
 	macDB                        util.PrefixMap[access]
+	shutdownTimeout              time.Duration
 	credsRenewalTimeBeforeExpiry time.Duration
 	usernamePrefix               string
 	temporaryPassword            string
@@ -135,6 +138,7 @@ type access struct {
 type ctxkOOBHost struct{}
 type ctxkBMC struct{}
 type ctxkInfo struct{}
+type ctxkMachines struct{}
 
 func (r *OOBReconciler) PreStart(ctx context.Context) error {
 	return r.ensureTemporaryPassword(ctx)
@@ -286,69 +290,59 @@ func (r *OOBReconciler) reconcile(ctx context.Context, oob *metalv1alpha1.OOB) (
 	log.Debug(ctx, "Reconciling")
 
 	var advance bool
+	var requeueAfter time.Duration
 	var err error
 
-	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name:         "IgnoreAnnotation",
-		run:          r.processIgnoreAnnotation,
-		readyReasons: []string{metalv1alpha1.OOBConditionReasonIgnored},
-	})
-	if !advance {
-		return ctrl.Result{}, err
+	phases := []oobRecPhase{
+		{
+			name:         "Ignored",
+			run:          r.reconcileIgnored,
+			readyReasons: []string{metalv1alpha1.OOBConditionReasonIgnored},
+		},
+		{
+			name: "Initial",
+			run:  r.reconcileInitial,
+		},
+		{
+			name:         "Endpoint",
+			run:          r.reconcileEndpoint,
+			errType:      OOBErrorBadEndpoint,
+			readyReasons: []string{metalv1alpha1.OOBConditionReasonNoEndpoint},
+		},
+		{
+			name:    "Credentials",
+			run:     r.reconcileCredentials,
+			errType: OOBErrorBadCredentials,
+		},
+		{
+			name:    "Info",
+			run:     r.reconcileInfo,
+			errType: OOBErrorBadInfo,
+		},
+		{
+			name:    "Machines",
+			run:     r.reconcileMachines,
+			errType: OOBErrorBadMachines,
+		},
+		{
+			name:    "MachineControl",
+			run:     r.reconcileMachineControl,
+			errType: OOBErrorBadMachineControl,
+		},
+		{
+			name:         "Ready",
+			run:          r.reconcileReady,
+			readyReasons: []string{metalv1alpha1.OOBConditionReasonReady},
+		},
 	}
 
-	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name: "Initial",
-		run:  r.processInitial,
-	})
-	if !advance {
-		return ctrl.Result{}, err
-	}
-
-	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name:         "Endpoint",
-		run:          r.processEndpoint,
-		errType:      OOBErrorBadEndpoint,
-		readyReasons: []string{metalv1alpha1.OOBConditionReasonNoEndpoint},
-	})
-	if !advance {
-		return ctrl.Result{}, err
-	}
-
-	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name:    "Credentials",
-		run:     r.processCredentials,
-		errType: OOBErrorBadCredentials,
-	})
-	if !advance {
-		return ctrl.Result{}, err
-	}
-
-	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name:    "Info",
-		run:     r.processInfo,
-		errType: OOBErrorBadInfo,
-	})
-	if !advance {
-		return ctrl.Result{}, err
-	}
-
-	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name:    "Machines",
-		run:     r.processMachines,
-		errType: OOBErrorBadMachines,
-	})
-	if !advance {
-		return ctrl.Result{}, err
-	}
-
-	ctx, advance, err = r.runPhase(ctx, oob, oobRecPhase{
-		name:         "Ready",
-		run:          r.processReady,
-		readyReasons: []string{metalv1alpha1.OOBConditionReasonReady},
-	})
-	if !advance {
-		return ctrl.Result{}, err
+	for _, p := range phases {
+		ctx, advance, requeueAfter, err = r.runPhase(ctx, oob, p)
+		if !advance {
+			return ctrl.Result{
+				RequeueAfter: requeueAfter,
+			}, err
+		}
 	}
 
 	log.Debug(ctx, "Reconciled successfully")
@@ -357,31 +351,32 @@ func (r *OOBReconciler) reconcile(ctx context.Context, oob *metalv1alpha1.OOB) (
 
 type oobRecPhase struct {
 	name         string
-	run          func(context.Context, *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error)
+	run          func(context.Context, *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error)
 	errType      string
 	readyReasons []string
 }
 
-func (r *OOBReconciler) runPhase(ctx context.Context, oob *metalv1alpha1.OOB, phase oobRecPhase) (context.Context, bool, error) {
+func (r *OOBReconciler) runPhase(ctx context.Context, oob *metalv1alpha1.OOB, phase oobRecPhase) (context.Context, bool, time.Duration, error) {
 	ctx = log.WithValues(ctx, "phase", phase.name)
 	var apply *metalv1alpha1apply.OOBApplyConfiguration
 	var status *metalv1alpha1apply.OOBStatusApplyConfiguration
+	var requeueAfter time.Duration
 	var err error
 
 	if phase.run == nil {
-		return ctx, true, nil
+		return ctx, true, 0, nil
 	}
 
-	ctx, apply, status, err = phase.run(ctx, oob)
+	ctx, apply, status, requeueAfter, err = phase.run(ctx, oob)
 	if err != nil {
-		return ctx, false, err
+		return ctx, false, 0, err
 	}
 
 	if apply != nil {
 		log.Debug(ctx, "Applying")
 		err = r.Patch(ctx, oob, ssa.Apply(apply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 		if err != nil {
-			return ctx, false, fmt.Errorf("cannot apply OOB: %w", err)
+			return ctx, false, 0, fmt.Errorf("cannot apply OOB: %w", err)
 		}
 	}
 
@@ -391,55 +386,55 @@ func (r *OOBReconciler) runPhase(ctx context.Context, oob *metalv1alpha1.OOB, ph
 		log.Debug(ctx, "Applying status")
 		err = r.Status().Patch(ctx, oob, ssa.Apply(apply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 		if err != nil {
-			return ctx, false, fmt.Errorf("cannot apply OOB status: %w", err)
+			return ctx, false, 0, fmt.Errorf("cannot apply OOB status: %w", err)
 		}
 	}
 
+	advance := true
 	cond, ok := ssa.GetCondition(oob.Status.Conditions, metalv1alpha1.OOBConditionTypeReady)
 	if ok {
 		if cond.Reason == metalv1alpha1.OOBConditionReasonError && strings.HasPrefix(cond.Message, phase.errType+": ") {
-			return ctx, false, fmt.Errorf(cond.Message)
+			return ctx, false, 0, fmt.Errorf(cond.Message)
 		}
 		if slices.Contains(phase.readyReasons, cond.Reason) {
-			log.Debug(ctx, "Reconciled successfully")
-			return ctx, false, nil
+			advance = false
 		}
 	}
 
-	advance := apply == nil
+	advance = advance && apply == nil && requeueAfter == 0
 	if !advance {
 		log.Debug(ctx, "Reconciled successfully")
 	}
-	return ctx, advance, nil
+	return ctx, advance, requeueAfter, nil
 }
 
-func (r *OOBReconciler) setCondition(ctx context.Context, oob *metalv1alpha1.OOB, apply *metalv1alpha1apply.OOBApplyConfiguration, status *metalv1alpha1apply.OOBStatusApplyConfiguration, state metalv1alpha1.OOBState, cond metav1.Condition) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) setCondition(ctx context.Context, oob *metalv1alpha1.OOB, apply *metalv1alpha1apply.OOBApplyConfiguration, status *metalv1alpha1apply.OOBStatusApplyConfiguration, state metalv1alpha1.OOBState, cond metav1.Condition) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	conds, mod := ssa.SetCondition(oob.Status.Conditions, cond)
 	if oob.Status.State != state || mod {
 		log.Debug(ctx, "Setting condition", "type", cond.Type, "status", cond.Status, "reason", cond.Reason)
 		if status == nil {
 			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB status: %w", err)
 			}
 			status = util.Ensure(applyst.Status)
 		}
 		status = status.WithState(state)
 		status.Conditions = nil
 		for _, c := range conds {
-			ac := metav1apply.Condition().
+			ca := metav1apply.Condition().
 				WithType(c.Type).
 				WithStatus(c.Status).
 				WithLastTransitionTime(c.LastTransitionTime).
 				WithReason(c.Reason).
 				WithMessage(c.Message)
-			status = status.WithConditions(ac)
+			status = status.WithConditions(ca)
 		}
 	}
-	return ctx, apply, status, nil
+	return ctx, apply, status, 0, nil
 }
 
-func (r *OOBReconciler) setError(ctx context.Context, oob *metalv1alpha1.OOB, apply *metalv1alpha1apply.OOBApplyConfiguration, status *metalv1alpha1apply.OOBStatusApplyConfiguration, errType string, err error) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) setError(ctx context.Context, oob *metalv1alpha1.OOB, apply *metalv1alpha1apply.OOBApplyConfiguration, status *metalv1alpha1apply.OOBStatusApplyConfiguration, errType string, err error) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	if errType != "" {
 		err = fmt.Errorf("%s: %w", errType, err)
 	}
@@ -452,7 +447,7 @@ func (r *OOBReconciler) setError(ctx context.Context, oob *metalv1alpha1.OOB, ap
 	})
 }
 
-func (r *OOBReconciler) processIgnoreAnnotation(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) reconcileIgnored(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	_, ok := oob.Annotations[OOBIgnoreAnnotation]
 	if ok {
 		return r.setCondition(ctx, oob, nil, nil, metalv1alpha1.OOBStateIgnored, metav1.Condition{
@@ -468,10 +463,10 @@ func (r *OOBReconciler) processIgnoreAnnotation(ctx context.Context, oob *metalv
 		})
 	}
 
-	return ctx, nil, nil, nil
+	return ctx, nil, nil, 0, nil
 }
 
-func (r *OOBReconciler) processInitial(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) reconcileInitial(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	var apply *metalv1alpha1apply.OOBApplyConfiguration
 
 	ctx = log.WithValues(ctx, "mac", oob.Spec.MACAddress)
@@ -481,7 +476,7 @@ func (r *OOBReconciler) processInitial(ctx context.Context, oob *metalv1alpha1.O
 		var err error
 		apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 		}
 		apply.Finalizers = util.Set(apply.Finalizers, OOBFinalizer)
 	}
@@ -495,10 +490,10 @@ func (r *OOBReconciler) processInitial(ctx context.Context, oob *metalv1alpha1.O
 		})
 	}
 
-	return ctx, apply, nil, nil
+	return ctx, apply, nil, 0, nil
 }
 
-func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) reconcileEndpoint(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	var apply *metalv1alpha1apply.OOBApplyConfiguration
 	var status *metalv1alpha1apply.OOBStatusApplyConfiguration
 
@@ -509,7 +504,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 			Name:      oob.Spec.EndpointRef.Name,
 		}, &ip)
 		if err != nil && !errors.IsNotFound(err) {
-			return ctx, nil, nil, fmt.Errorf("cannot get IP: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot get IP: %w", err)
 		}
 
 		valid := ip.DeletionTimestamp == nil && r.ipLabelSelector.Matches(labels.Set(ip.Labels)) && ip.Namespace == OOBTemporaryNamespaceHack
@@ -519,12 +514,12 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 				var ipApply *ipamv1alpha1apply.IPApplyConfiguration
 				ipApply, err = ipamv1alpha1apply.ExtractIP(&ip, OOBFieldManager)
 				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot extract IP: %w", err)
+					return ctx, nil, nil, 0, fmt.Errorf("cannot extract IP: %w", err)
 				}
 				ipApply.Finalizers = util.Clear(ipApply.Finalizers, OOBFinalizer)
 				err = r.Patch(ctx, &ip, ssa.Apply(ipApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot apply IP: %w", err)
+					return ctx, nil, nil, 0, fmt.Errorf("cannot apply IP: %w", err)
 				}
 			}
 
@@ -533,7 +528,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 			log.Debug(ctx, "Clearing endpoint ref")
 			apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec))
 			apply.Spec.EndpointRef = nil
@@ -546,7 +541,7 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 		var ipList ipamv1alpha1.IPList
 		err := r.List(ctx, &ipList, client.MatchingLabelsSelector{Selector: r.ipLabelSelector}, client.MatchingLabels{OOBIPMacLabel: oob.Spec.MACAddress})
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot list IPs: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot list IPs: %w", err)
 		}
 
 		found := false
@@ -569,19 +564,19 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+					return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 				}
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
 				WithEndpointRef(*oob.Spec.EndpointRef))
 
-			ctx, apply, status, err = r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateInProgress, metav1.Condition{
+			ctx, apply, status, _, err = r.setCondition(ctx, oob, apply, status, metalv1alpha1.OOBStateInProgress, metav1.Condition{
 				Type:   metalv1alpha1.OOBConditionTypeReady,
 				Status: metav1.ConditionFalse,
 				Reason: metalv1alpha1.OOBConditionReasonInProgress,
 			})
 			if err != nil {
-				return ctx, nil, nil, err
+				return ctx, nil, nil, 0, err
 			}
 
 			break
@@ -599,12 +594,12 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 		log.Debug(ctx, "Adding finalizer to IP")
 		ipApply, err := ipamv1alpha1apply.ExtractIP(&ip, OOBFieldManager)
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot extract IP: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot extract IP: %w", err)
 		}
 		ipApply.Finalizers = util.Set(ipApply.Finalizers, OOBFinalizer)
 		err = r.Patch(ctx, &ip, ssa.Apply(ipApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot apply IP: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot apply IP: %w", err)
 		}
 	}
 
@@ -627,10 +622,10 @@ func (r *OOBReconciler) processEndpoint(ctx context.Context, oob *metalv1alpha1.
 		}
 	}
 
-	return context.WithValue(ctx, ctxkOOBHost{}, ip.Status.Reserved.String()), apply, status, nil
+	return context.WithValue(ctx, ctxkOOBHost{}, ip.Status.Reserved.String()), apply, status, 0, nil
 }
 
-func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) reconcileCredentials(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	host := ctx.Value(ctxkOOBHost{}).(string)
 
 	var apply *metalv1alpha1apply.OOBApplyConfiguration
@@ -647,7 +642,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			Name: oob.Spec.SecretRef.Name,
 		}, &secret)
 		if err != nil && !errors.IsNotFound(err) {
-			return ctx, nil, nil, fmt.Errorf("cannot get OOBSecret: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot get OOBSecret: %w", err)
 		}
 
 		if errors.IsNotFound(err) {
@@ -656,7 +651,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			log.Debug(ctx, "Clearing secret ref")
 			apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec))
 			apply.Spec.SecretRef = nil
@@ -686,7 +681,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			OOBSecretSpecMACAddress: oob.Spec.MACAddress,
 		})
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot list OOBSecrets: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot list OOBSecrets: %w", err)
 		}
 
 		if len(secretList.Items) > 1 {
@@ -705,7 +700,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+					return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 				}
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
@@ -724,6 +719,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		if !ok {
 			return r.setError(ctx, oob, apply, status, OOBErrorBadCredentials, fmt.Errorf("cannot find MAC address in MAC DB: %s", oob.Spec.MACAddress))
 		}
+		defaultCreds = a.DefaultCredentials
 
 		if a.Ignore && !metav1.HasAnnotation(oob.ObjectMeta, OOBIgnoreAnnotation) {
 			log.Debug(ctx, "Adding ignore annotation")
@@ -731,26 +727,25 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 				var err error
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+					return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 				}
 			}
 			apply = apply.WithAnnotations(map[string]string{
 				OOBIgnoreAnnotation: "",
 			})
 
-			return ctx, apply, status, nil
+			return ctx, apply, status, 0, nil
 		}
 
 		if !util.NilOrEqual(oob.Spec.Protocol, &a.Protocol) {
 			oob.Spec.Protocol = &a.Protocol
 			oob.Spec.Flags = a.Flags
-			defaultCreds = a.DefaultCredentials
 			log.Debug(ctx, "Setting protocol and flags")
 			if apply == nil {
 				var err error
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+					return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 				}
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
@@ -765,7 +760,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			log.Debug(ctx, "Setting type")
 			applyst, err := metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB status: %w", err)
 			}
 			status = util.Ensure(applyst.Status).
 				WithType(a.Type)
@@ -831,7 +826,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			var secretApply *metalv1alpha1apply.OOBSecretApplyConfiguration
 			secretApply, err = metalv1alpha1apply.ExtractOOBSecret(&secret, OOBFieldManager)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract OOBSecret: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOBSecret: %w", err)
 			}
 			secretApply.Finalizers = util.Set(secretApply.Finalizers, OOBFinalizer)
 			secretApply = secretApply.WithSpec(util.Ensure(secretApply.Spec).
@@ -843,7 +838,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 				}))
 			err = r.Patch(ctx, &secret, ssa.Apply(secretApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot apply OOBSecret: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot apply OOBSecret: %w", err)
 			}
 
 			oob.Spec.SecretRef = &v1.LocalObjectReference{
@@ -855,7 +850,7 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 			if apply == nil {
 				apply, err = metalv1alpha1apply.ExtractOOB(oob, OOBFieldManager)
 				if err != nil {
-					return ctx, nil, nil, fmt.Errorf("cannot extract OOB: %w", err)
+					return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB: %w", err)
 				}
 			}
 			apply = apply.WithSpec(util.Ensure(apply.Spec).
@@ -873,12 +868,12 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		var secretApply *metalv1alpha1apply.OOBSecretApplyConfiguration
 		secretApply, err = metalv1alpha1apply.ExtractOOBSecret(&secret, OOBFieldManager)
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot extract OOBSecret: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOBSecret: %w", err)
 		}
 		secretApply.Finalizers = util.Set(secretApply.Finalizers, OOBFinalizer)
 		err = r.Patch(ctx, &secret, ssa.Apply(secretApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot apply OOBSecret: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot apply OOBSecret: %w", err)
 		}
 	}
 
@@ -893,10 +888,10 @@ func (r *OOBReconciler) processCredentials(ctx context.Context, oob *metalv1alph
 		}
 	}
 
-	return context.WithValue(ctx, ctxkBMC{}, b), apply, status, nil
+	return context.WithValue(ctx, ctxkBMC{}, b), apply, status, 0, nil
 }
 
-func (r *OOBReconciler) processInfo(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) reconcileInfo(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	b := ctx.Value(ctxkBMC{}).(bmc.BMC)
 
 	var status *metalv1alpha1apply.OOBStatusApplyConfiguration
@@ -914,7 +909,7 @@ func (r *OOBReconciler) processInfo(ctx context.Context, oob *metalv1alpha1.OOB)
 		var applyst *metalv1alpha1apply.OOBApplyConfiguration
 		applyst, err = metalv1alpha1apply.ExtractOOBStatus(oob, OOBFieldManager)
 		if err != nil {
-			return ctx, nil, nil, fmt.Errorf("cannot extract OOB status: %w", err)
+			return ctx, nil, nil, 0, fmt.Errorf("cannot extract OOB status: %w", err)
 		}
 		status = util.Ensure(applyst.Status).
 			WithManufacturer(info.Manufacturer).
@@ -922,20 +917,20 @@ func (r *OOBReconciler) processInfo(ctx context.Context, oob *metalv1alpha1.OOB)
 			WithFirmwareVersion(info.FirmwareVersion)
 	}
 
-	return context.WithValue(ctx, ctxkInfo{}, info), nil, status, nil
+	return context.WithValue(ctx, ctxkInfo{}, info), nil, status, 0, nil
 }
 
-func (r *OOBReconciler) processMachines(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) reconcileMachines(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	info := ctx.Value(ctxkInfo{}).(bmc.Info)
 
 	type minfo struct {
 		m *metalv1alpha1.Machine
 		i bmc.Machine
 	}
-	machines := make(map[string]minfo, len(info.Machines))
+	machineInfos := make(map[string]minfo, len(info.Machines))
 	if oob.Status.Type == metalv1alpha1.OOBTypeMachine {
 		for _, i := range info.Machines {
-			machines[i.UUID] = minfo{
+			machineInfos[i.UUID] = minfo{
 				m: nil,
 				i: i,
 			}
@@ -947,21 +942,21 @@ func (r *OOBReconciler) processMachines(ctx context.Context, oob *metalv1alpha1.
 		MachineSpecOOBRefName: oob.Name,
 	})
 	if err != nil {
-		return ctx, nil, nil, fmt.Errorf("cannot list Machines: %w", err)
+		return ctx, nil, nil, 0, fmt.Errorf("cannot list Machines: %w", err)
 	}
 	for _, m := range machineList.Items {
-		mi, ok := machines[m.Spec.UUID]
+		mi, ok := machineInfos[m.Spec.UUID]
 		if !ok {
 			log.Info(ctx, "Deleting orphaned machine", "machine", m.Name)
 			err = r.Delete(ctx, &m)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot delete Machine: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot delete Machine: %w", err)
 			}
 			continue
 		}
 
 		machine := &m
-		machines[m.Spec.UUID] = minfo{
+		machineInfos[m.Spec.UUID] = minfo{
 			m: machine,
 			i: mi.i,
 		}
@@ -971,20 +966,40 @@ func (r *OOBReconciler) processMachines(ctx context.Context, oob *metalv1alpha1.
 		Name: oob.Name,
 	}
 
-	for uuid, mi := range machines {
+	machines := make([]*metalv1alpha1.Machine, 0, len(machineInfos))
+	for uuid, mi := range machineInfos {
+		var machineApply *metalv1alpha1apply.MachineApplyConfiguration
+
 		if mi.m == nil {
 			mi.m = &metalv1alpha1.Machine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: uuid,
 				},
 			}
-			machineApply := metalv1alpha1apply.Machine(mi.m.Name, "").WithSpec(metalv1alpha1apply.MachineSpec().
+			machineApply = metalv1alpha1apply.Machine(mi.m.Name, "").WithSpec(metalv1alpha1apply.MachineSpec().
 				WithUUID(uuid).
 				WithOOBRef(oobRef))
+		}
+
+		op, ok := mi.m.Annotations[metalv1alpha1.MachineOperationKeyName]
+		if ok && op == "" {
+			machineApply, err = metalv1alpha1apply.ExtractMachine(mi.m, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, 0, fmt.Errorf("cannot extract Machine: %w", err)
+			}
+			_, ok = machineApply.Annotations[metalv1alpha1.MachineOperationKeyName]
+			if ok {
+				delete(machineApply.Annotations, metalv1alpha1.MachineOperationKeyName)
+			} else {
+				machineApply = nil
+			}
+		}
+
+		if machineApply != nil {
 			log.Info(ctx, "Applying Machine", "machine", mi.m.Name)
 			err = r.Patch(ctx, mi.m, ssa.Apply(machineApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot apply Machine: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot apply Machine: %w", err)
 			}
 		}
 
@@ -993,29 +1008,349 @@ func (r *OOBReconciler) processMachines(ctx context.Context, oob *metalv1alpha1.
 			mi.m.Status.SerialNumber != mi.i.SerialNumber ||
 			mi.m.Status.Power != metalv1alpha1.Power(mi.i.Power) ||
 			mi.m.Status.LocatorLED != metalv1alpha1.LED(mi.i.LocatorLED) {
-			var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 			machineApply, err = metalv1alpha1apply.ExtractMachineStatus(mi.m, OOBFieldManager)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot extract Machine status: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot extract Machine status: %w", err)
 			}
 			machineApply = machineApply.WithStatus(util.Ensure(machineApply.Status).
 				WithManufacturer(mi.i.Manufacturer).
 				WithSKU(mi.i.SKU).
-				WithSerialNumber(mi.i.SerialNumber).
-				WithPower(metalv1alpha1.Power(mi.i.Power)).
-				WithLocatorLED(metalv1alpha1.LED(mi.i.LocatorLED)))
+				WithSerialNumber(mi.i.SerialNumber))
+			if mi.i.Power != "" {
+				machineApply.Status = machineApply.Status.WithPower(metalv1alpha1.Power(mi.i.Power))
+			}
+			if mi.i.LocatorLED != "" {
+				machineApply.Status = machineApply.Status.WithLocatorLED(metalv1alpha1.LED(mi.i.LocatorLED))
+			}
 			log.Info(ctx, "Applying Machine status", "machine", mi.m.Name)
 			err = r.Status().Patch(ctx, mi.m, ssa.Apply(machineApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
 			if err != nil {
-				return ctx, nil, nil, fmt.Errorf("cannot apply Machine status: %w", err)
+				return ctx, nil, nil, 0, fmt.Errorf("cannot apply Machine status: %w", err)
 			}
+		}
+
+		machines = append(machines, mi.m)
+	}
+	return context.WithValue(ctx, ctxkMachines{}, machines), nil, nil, 0, nil
+}
+
+func (r *OOBReconciler) reconcileMachineControl(ctx context.Context, _ *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
+	b := ctx.Value(ctxkBMC{}).(bmc.BMC)
+	machines := ctx.Value(ctxkMachines{}).([]*metalv1alpha1.Machine)
+
+	phases := []machineCtrlPhase{
+		{
+			name: "LocatorLED",
+			run:  r.controlLocatorLED,
+		},
+		{
+			name: "Power",
+			run:  r.controlPower,
+		},
+		{
+			name: "Restart",
+			run:  r.controlRestart,
+		},
+		{
+			name: "Ready",
+			run:  r.controlReady,
+		},
+	}
+
+	var requeueAfter time.Duration
+	for _, p := range phases {
+		next := make([]*metalv1alpha1.Machine, 0, len(machines))
+		for _, m := range machines {
+			advance, ra, err := r.runCtrlPhase(log.WithValues(ctx, "ctrlPhase", p.name, "machine", m.Name), m, b, p)
+			if err != nil {
+				return ctx, nil, nil, 0, err
+			}
+			if advance {
+				next = append(next, m)
+			}
+			if ra > 0 {
+				if requeueAfter == 0 || ra < requeueAfter {
+					requeueAfter = ra
+				}
+			}
+		}
+		machines = next
+	}
+
+	return ctx, nil, nil, requeueAfter, nil
+}
+
+type machineCtrlPhase struct {
+	name string
+	run  func(context.Context, *metalv1alpha1.Machine, bmc.BMC) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error)
+}
+
+func (r *OOBReconciler) runCtrlPhase(ctx context.Context, machine *metalv1alpha1.Machine, b bmc.BMC, phase machineCtrlPhase) (bool, time.Duration, error) {
+	var machineApply *metalv1alpha1apply.MachineApplyConfiguration
+	var machineStatus *metalv1alpha1apply.MachineStatusApplyConfiguration
+	var advance bool
+	var requeueAfter time.Duration
+	var err error
+
+	if phase.run == nil {
+		return true, 0, nil
+	}
+
+	ctx, machineApply, machineStatus, advance, requeueAfter, err = phase.run(ctx, machine, b)
+	if err != nil {
+		return false, 0, err
+	}
+
+	if machineApply != nil {
+		log.Debug(ctx, "Applying Machine")
+		err = r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
+		if err != nil {
+			return false, 0, fmt.Errorf("cannot apply Machine: %w", err)
 		}
 	}
 
-	return ctx, nil, nil, nil
+	if machineStatus != nil {
+		machineApply = metalv1alpha1apply.Machine(machine.Name, machine.Namespace).WithStatus(machineStatus)
+
+		log.Debug(ctx, "Applying Machine status")
+		err = r.Status().Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(OOBFieldManager), client.ForceOwnership)
+		if err != nil {
+			return false, 0, fmt.Errorf("cannot apply Machine status: %w", err)
+		}
+	}
+
+	return advance && machineApply == nil, requeueAfter, nil
 }
 
-func (r *OOBReconciler) processReady(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, error) {
+func (r *OOBReconciler) setMachineCondition(ctx context.Context, machine *metalv1alpha1.Machine, machineApply *metalv1alpha1apply.MachineApplyConfiguration, machineStatus *metalv1alpha1apply.MachineStatusApplyConfiguration, advance bool, requeueAfter time.Duration, cond metav1.Condition) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
+	conds, mod := ssa.SetCondition(machine.Status.Conditions, cond)
+	if mod {
+		if machineStatus == nil {
+			applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+			}
+			machineStatus = util.Ensure(applyst.Status)
+		}
+
+		log.Debug(ctx, "Setting Machine condition", "type", cond.Type, "status", cond.Status, "reason", cond.Reason)
+		machineStatus.Conditions = nil
+		for _, c := range conds {
+			ca := metav1apply.Condition().
+				WithType(c.Type).
+				WithStatus(c.Status).
+				WithLastTransitionTime(c.LastTransitionTime).
+				WithReason(c.Reason).
+				WithMessage(c.Message)
+			machineStatus = machineStatus.WithConditions(ca)
+		}
+	}
+	return ctx, machineApply, machineStatus, advance, requeueAfter, nil
+}
+
+func (r *OOBReconciler) setMachineError(ctx context.Context, machine *metalv1alpha1.Machine, machineApply *metalv1alpha1apply.MachineApplyConfiguration, machineStatus *metalv1alpha1apply.MachineStatusApplyConfiguration, err error) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
+	return r.setMachineCondition(ctx, machine, machineApply, machineStatus, false, 0, metav1.Condition{
+		Type:    metalv1alpha1.MachineConditionTypeOOBHealthy,
+		Status:  metav1.ConditionFalse,
+		Reason:  metalv1alpha1.MachineConditionReasonOOBError,
+		Message: err.Error(),
+	})
+}
+
+func (r *OOBReconciler) controlLocatorLED(ctx context.Context, machine *metalv1alpha1.Machine, b bmc.BMC) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
+	if machine.Spec.LocatorLED == "" {
+		return ctx, nil, nil, true, 0, nil
+	}
+
+	lc, ok := b.(bmc.LEDControl)
+	if !ok {
+		return r.setMachineError(ctx, machine, nil, nil, fmt.Errorf("BMC does not support LED control"))
+	}
+
+	if machine.Spec.LocatorLED == machine.Status.LocatorLED {
+		return ctx, nil, nil, true, 0, nil
+	}
+
+	log.Info(ctx, "Setting machine locator LED", "locatorLED", machine.Spec.LocatorLED)
+	led, err := lc.SetLocatorLED(ctx, machine.Spec.UUID, bmc.LED(machine.Spec.LocatorLED))
+	if err != nil {
+		return r.setMachineError(ctx, machine, nil, nil, fmt.Errorf("cannot set Machine locator LED: %w", err))
+	}
+
+	var applyst *metalv1alpha1apply.MachineApplyConfiguration
+	applyst, err = metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+	if err != nil {
+		return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+	}
+	machineStatus := util.Ensure(applyst.Status).
+		WithLocatorLED(metalv1alpha1.LED(led))
+	return ctx, nil, machineStatus, true, 0, nil
+}
+
+func (r *OOBReconciler) controlPower(ctx context.Context, machine *metalv1alpha1.Machine, b bmc.BMC) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
+	var machineApply *metalv1alpha1apply.MachineApplyConfiguration
+	var machineStatus *metalv1alpha1apply.MachineStatusApplyConfiguration
+	var requeueAfter time.Duration
+
+	if machine.Spec.Power == "" {
+		return ctx, machineApply, machineStatus, true, requeueAfter, nil
+	}
+	op := machine.Annotations[metalv1alpha1.MachineOperationKeyName]
+
+	pc, ok := b.(bmc.PowerControl)
+	if !ok {
+		if machine.Status.ShutdownDeadline != nil {
+			applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+			}
+			machineStatus = util.Ensure(applyst.Status)
+			machineStatus.ShutdownDeadline = nil
+		}
+		return r.setMachineError(ctx, machine, machineApply, machineStatus, fmt.Errorf("BMC does not support power control"))
+	}
+
+	switch machine.Spec.Power {
+	case metalv1alpha1.PowerOn:
+		if machine.Status.ShutdownDeadline != nil {
+			applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+			}
+			machineStatus = util.Ensure(applyst.Status)
+			machineStatus.ShutdownDeadline = nil
+		}
+
+		switch machine.Status.Power {
+		case metalv1alpha1.PowerOn:
+
+		case metalv1alpha1.PowerOff:
+			log.Info(ctx, "Setting machine power", "power", "On")
+			err := pc.PowerOn(ctx, machine.Spec.UUID)
+			if err != nil {
+				return r.setMachineError(ctx, machine, machineApply, machineStatus, fmt.Errorf("cannot power machine on: %w", err))
+			}
+			requeueAfter = time.Second
+
+		default:
+			return r.setMachineError(ctx, machine, machineApply, machineStatus, fmt.Errorf("unsupported power state: %s", machine.Status.Power))
+		}
+
+	case metalv1alpha1.PowerOff:
+		switch machine.Status.Power {
+		case metalv1alpha1.PowerOn:
+			now := time.Now()
+			force := op == metalv1alpha1.MachineOperationForceOff
+			if !force && machine.Status.ShutdownDeadline.IsZero() {
+				applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+				if err != nil {
+					return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+				}
+				machineStatus = util.Ensure(applyst.Status).
+					WithShutdownDeadline(metav1.Time{Time: now.Add(r.shutdownTimeout)})
+
+				log.Info(ctx, "Setting machine power", "power", "On", "force", false)
+				err = pc.PowerOff(ctx, machine.Spec.UUID, false)
+				if err != nil {
+					return r.setMachineError(ctx, machine, machineApply, machineStatus, fmt.Errorf("cannot power machine off: %w", err))
+				}
+			} else if force || !machine.Status.ShutdownDeadline.After(now) {
+				applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+				if err != nil {
+					return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+				}
+				machineStatus = util.Ensure(applyst.Status)
+				machineStatus.ShutdownDeadline = nil
+
+				log.Info(ctx, "Setting machine power", "power", "On", "force", true)
+				err = pc.PowerOff(ctx, machine.Spec.UUID, true)
+				if err != nil {
+					return r.setMachineError(ctx, machine, machineApply, machineStatus, fmt.Errorf("cannot power machine off: %w", err))
+				}
+
+				machineApply, err = metalv1alpha1apply.ExtractMachine(machine, OOBFieldManager)
+				if err != nil {
+					return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine: %w", err)
+				}
+				machineApply = machineApply.WithAnnotations(map[string]string{
+					metalv1alpha1.MachineOperationKeyName: "",
+				})
+			} else {
+				requeueAfter = time.Second * 3
+			}
+
+		case metalv1alpha1.PowerOff:
+			if !machine.Status.ShutdownDeadline.IsZero() {
+				applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+				if err != nil {
+					return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+				}
+				machineStatus = util.Ensure(applyst.Status)
+				machineStatus.ShutdownDeadline = nil
+			}
+
+		default:
+			return r.setMachineError(ctx, machine, machineApply, machineStatus, fmt.Errorf("unsupported power state: %s", machine.Status.Power))
+		}
+
+		if op == metalv1alpha1.MachineOperationRestart || op == metalv1alpha1.MachineOperationForceRestart {
+			var err error
+			machineApply, err = metalv1alpha1apply.ExtractMachine(machine, OOBFieldManager)
+			if err != nil {
+				return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine: %w", err)
+			}
+			machineApply = machineApply.WithAnnotations(map[string]string{
+				metalv1alpha1.MachineOperationKeyName: "",
+			})
+		}
+
+	default:
+		return r.setMachineError(ctx, machine, machineApply, machineStatus, fmt.Errorf("unsupported power state: %s", machine.Status.Power))
+	}
+
+	return ctx, machineApply, machineStatus, true, requeueAfter, nil
+}
+
+func (r *OOBReconciler) controlRestart(ctx context.Context, machine *metalv1alpha1.Machine, b bmc.BMC) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
+	var machineApply *metalv1alpha1apply.MachineApplyConfiguration
+
+	op := machine.Annotations[metalv1alpha1.MachineOperationKeyName]
+	if op != metalv1alpha1.MachineOperationRestart && op != metalv1alpha1.MachineOperationForceRestart {
+		return ctx, machineApply, nil, true, 0, nil
+	}
+
+	rc, ok := b.(bmc.RestartControl)
+	if !ok {
+		return r.setMachineError(ctx, machine, machineApply, nil, fmt.Errorf("BMC does not support restart control"))
+	}
+
+	force := op == metalv1alpha1.MachineOperationForceRestart
+	log.Info(ctx, "Restarting machine", "force", force)
+	err := rc.Restart(ctx, machine.Spec.UUID, force)
+	if err != nil {
+		return r.setMachineError(ctx, machine, machineApply, nil, fmt.Errorf("cannot restart machine: %w", err))
+	}
+
+	machineApply, err = metalv1alpha1apply.ExtractMachine(machine, OOBFieldManager)
+	if err != nil {
+		return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine: %w", err)
+	}
+	machineApply = machineApply.WithAnnotations(map[string]string{
+		metalv1alpha1.MachineOperationKeyName: "",
+	})
+
+	return ctx, machineApply, nil, true, 0, nil
+}
+
+func (r *OOBReconciler) controlReady(ctx context.Context, machine *metalv1alpha1.Machine, _ bmc.BMC) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
+	return r.setMachineCondition(ctx, machine, nil, nil, true, 0, metav1.Condition{
+		Type:   metalv1alpha1.MachineConditionTypeOOBHealthy,
+		Status: metav1.ConditionTrue,
+		Reason: metalv1alpha1.MachineConditionReasonOOBReady,
+	})
+}
+
+func (r *OOBReconciler) reconcileReady(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
 	return r.setCondition(ctx, oob, nil, nil, metalv1alpha1.OOBStateReady, metav1.Condition{
 		Type:   metalv1alpha1.OOBConditionTypeReady,
 		Status: metav1.ConditionTrue,
