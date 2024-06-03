@@ -38,7 +38,7 @@ type MachineSpec struct {
 	// +optional
 	Power Power `json:"power,omitempty"`
 
-	// +kubebuilder:validation:Enum=On;Off;Blinking
+	// +kubebuilder:validation:Enum=Lit;Off;Blinking
 	// +optional
 	LocatorLED LED `json:"locatorLED,omitempty"`
 }
@@ -53,7 +53,7 @@ const (
 type LED string
 
 const (
-	LEDOn       LED = "On"
+	LEDLit      LED = "Lit"
 	LEDOff      LED = "Off"
 	LEDBlinking LED = "Blinking"
 )
@@ -73,7 +73,7 @@ type MachineStatus struct {
 	// +optional
 	Power Power `json:"power,omitempty"`
 
-	// +kubebuilder:validation:Enum=On;Off;Blinking
+	// +kubebuilder:validation:Enum=Lit;Off;Blinking
 	// +optional
 	LocatorLED LED `json:"locatorLED,omitempty"`
 
@@ -112,6 +112,12 @@ const (
 	MachineStateReady  MachineState = "Ready"
 	MachineStateUneady MachineState = "Unready"
 	MachineStateError  MachineState = "Error"
+)
+
+const (
+	MachineConditionTypeOOBHealthy = "OOBHealthy"
+	MachineConditionReasonOOBReady = "OOBReady"
+	MachineConditionReasonOOBError = "OOBError"
 )
 
 // +kubebuilder:object:root=true

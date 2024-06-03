@@ -41,6 +41,7 @@ type Protocol struct {
 
 type ProtocolName string
 
+//goland:noinspection GoUnusedConst
 const (
 	ProtocolNameRedfish ProtocolName = "Redfish"
 	ProtocolNameIPMI    ProtocolName = "IPMI"
@@ -54,6 +55,7 @@ type ConsoleProtocol struct {
 
 type ConsoleProtocolName string
 
+//goland:noinspection GoUnusedConst
 const (
 	ConsoleProtocolNameIPMI      ConsoleProtocolName = "IPMI"
 	ConsoleProtocolNameSSH       ConsoleProtocolName = "SSH"
@@ -87,6 +89,7 @@ type OOBStatus struct {
 
 type OOBType string
 
+//goland:noinspection GoUnusedConst
 const (
 	OOBTypeMachine OOBType = "Machine"
 	OOBTypeRouter  OOBType = "Router"

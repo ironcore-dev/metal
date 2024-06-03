@@ -129,7 +129,7 @@ var _ = BeforeSuite(func() {
 	Expect(machineClaimReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	var oobReconciler *OOBReconciler
-	oobReconciler, err = NewOOBReconciler(ns.Name, "", "../../test/macdb.yaml", time.Hour, "metal-", "bmc-temporary-password")
+	oobReconciler, err = NewOOBReconciler(ns.Name, "", "../../test/macdb.yaml", time.Hour, time.Second, "metal-", "bmc-temporary-password")
 	Expect(err).NotTo(HaveOccurred())
 	Expect(oobReconciler).NotTo(BeNil())
 	Expect(oobReconciler.SetupWithManager(mgr)).To(Succeed())

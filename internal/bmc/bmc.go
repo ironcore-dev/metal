@@ -37,6 +37,7 @@ type Info struct {
 
 type Typ string
 
+//goland:noinspection GoUnusedConst
 const (
 	TypeMachine Typ = "Machine"
 	TypeSwitch  Typ = "Switch"
@@ -62,22 +63,22 @@ const (
 type LED string
 
 const (
-	LEDOn       LED = "On"
+	LEDLit      LED = "Lit"
 	LEDOff      LED = "Off"
 	LEDBlinking LED = "Blinking"
 )
 
 type LEDControl interface {
-	SetLocatorLED(ctx context.Context, state LED) (LED, error)
+	SetLocatorLED(ctx context.Context, machine string, state LED) (LED, error)
 }
 
 type PowerControl interface {
-	PowerOn(ctx context.Context) error
-	PowerOff(ctx context.Context, force bool) error
+	PowerOn(ctx context.Context, machine string) error
+	PowerOff(ctx context.Context, machine string, force bool) error
 }
 
 type RestartControl interface {
-	Restart(ctx context.Context, force bool) error
+	Restart(ctx context.Context, machine string, force bool) error
 }
 
 func NewBMC(typ string, tags map[string]string, host string, port int32, creds Credentials, exp time.Time) (BMC, error) {

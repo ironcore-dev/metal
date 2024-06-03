@@ -55,18 +55,6 @@ func (b *RedfishBMC) Tags() map[string]string {
 	return b.tags
 }
 
-func (b *RedfishBMC) LEDControl() LEDControl {
-	return b
-}
-
-func (b *RedfishBMC) PowerControl() PowerControl {
-	return b
-}
-
-func (b *RedfishBMC) RestartControl() RestartControl {
-	return b
-}
-
 func (b *RedfishBMC) Credentials() (Credentials, time.Time) {
 	return b.creds, b.exp
 }
@@ -649,7 +637,7 @@ func isConsoleTypeSupported(consoleList []redfish.SerialConnectTypesSupported, c
 	return false
 }
 
-func (b *RedfishBMC) SetLocatorLED(ctx context.Context, state LED) (LED, error) {
+func (b *RedfishBMC) SetLocatorLED(ctx context.Context, _ string, state LED) (LED, error) {
 	c, err := redfishConnect(ctx, b.host, b.port, b.creds)
 	if err != nil {
 		return "", fmt.Errorf("cannot connect: %w", err)
@@ -666,7 +654,7 @@ func (b *RedfishBMC) SetLocatorLED(ctx context.Context, state LED) (LED, error) 
 
 	var ledState common.IndicatorLED
 	switch state {
-	case LEDOn:
+	case LEDLit:
 		ledState = common.LitIndicatorLED
 	case LEDBlinking:
 		ledState = common.BlinkingIndicatorLED
@@ -686,7 +674,7 @@ func (b *RedfishBMC) SetLocatorLED(ctx context.Context, state LED) (LED, error) 
 	return state, nil
 }
 
-func (b *RedfishBMC) PowerOn(ctx context.Context) error {
+func (b *RedfishBMC) PowerOn(ctx context.Context, _ string) error {
 	c, err := redfishConnect(ctx, b.host, b.port, b.creds)
 	if err != nil {
 		return fmt.Errorf("cannot connect: %w", err)
@@ -709,7 +697,7 @@ func (b *RedfishBMC) PowerOn(ctx context.Context) error {
 	return nil
 }
 
-func (b *RedfishBMC) Restart(ctx context.Context, immediate bool) error {
+func (b *RedfishBMC) Restart(ctx context.Context, _ string, immediate bool) error {
 	c, err := redfishConnect(ctx, b.host, b.port, b.creds)
 	if err != nil {
 		return fmt.Errorf("cannot connect: %w", err)
@@ -736,7 +724,7 @@ func (b *RedfishBMC) Restart(ctx context.Context, immediate bool) error {
 	return nil
 }
 
-func (b *RedfishBMC) PowerOff(ctx context.Context, immediate bool) error {
+func (b *RedfishBMC) PowerOff(ctx context.Context, _ string, immediate bool) error {
 	c, err := redfishConnect(ctx, b.host, b.port, b.creds)
 	if err != nil {
 		return fmt.Errorf("cannot connect: %w", err)
