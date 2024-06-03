@@ -1,20 +1,21 @@
 name: Enable auto-merge
 
-on: pull_request
+on: pull_request_target
 
-permissions:
-  pull-requests: write
-  contents: write
+
 
 jobs:
   auto-merge:
     name: Enable auto-merge
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
     #if: ${{ (github.event.pull_request.draft == false) && (github.event.pull_request.user.login == 'dependabot[bot]') }}
     if: ${{ github.event.pull_request.draft == false }}
     steps:
     - name: Set up CLI
-      uses: ksivamuthu/actions-setup-gh-cli@v2
+      uses: ksivamuthu/actions-setup-gh-cli@v3
     - name: Enable auto-merge
       run: gh pr merge --auto --squash "$PR_URL"
       env:
