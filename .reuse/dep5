@@ -24,6 +24,9 @@ Disclaimer: The code in this project may include calls to APIs ("API Calls") of
  you any rights to use or access any SAP External Product, or provide any third
  parties the right to use of access any SAP External Product, through API Calls.
 
+# --------------------------------------------------
+# source code
+
 Files:
   .github/*
   api/*
@@ -40,6 +43,14 @@ Files:
   go.sum
   Makefile
   PROJECT
+Copyright: 2024 SAP SE or an SAP affiliate company and IronCore contributors
+License: Apache-2.0
+
+# --------------------------------------------------
+# documentation
+
+Files:
+  docs/*
   README.md
 Copyright: 2024 SAP SE or an SAP affiliate company and IronCore contributors
 License: Apache-2.0
