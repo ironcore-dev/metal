@@ -3,7 +3,7 @@ module github.com/ironcore-dev/metal
 go 1.22.2
 
 require (
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zerologr v1.2.3
 	github.com/golangci/golangci-lint v1.59.0
 	github.com/google/addlicense v1.1.1
@@ -15,7 +15,7 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/sethvargo/go-password v0.3.0
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.18.2
+	github.com/spf13/viper v1.19.0
 	github.com/stmcginnis/gofish v0.18.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.1
