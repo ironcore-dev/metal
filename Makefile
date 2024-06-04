@@ -1,11 +1,3 @@
-IMG ?= controller:latest
-
-ifeq (,$(shell go env GOBIN))
-GOBIN=$(shell go env GOPATH)/bin
-else
-GOBIN=$(shell go env GOBIN)
-endif
-
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
@@ -70,14 +62,6 @@ checklicense: ## Check that every file has a license header present.
 build: generate manifests fmt vet ## Build manager binary.
 	@go build -o metal cmd/main.go
 
-.PHONY: docker-build
-docker-build: ## Build docker image with the manager.
-	@docker build -t ${IMG} .
-
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	@docker push ${IMG}
-
 ##@ Deployment
 
 .PHONY: install
@@ -87,12 +71,3 @@ install: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/con
 .PHONY: uninstall
 uninstall: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	@go run sigs.k8s.io/kustomize/kustomize/v5 build config/crd | kubectl delete --ignore-not-found=true -f -
-
-.PHONY: deploy
-deploy: manifests ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	@cd config/manager && go run sigs.k8s.io/kustomize/kustomize/v5 edit set image controller=${IMG}
-	@go run sigs.k8s.io/kustomize/kustomize/v5 build config/default | kubectl apply -f -
-
-.PHONY: undeploy
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	@go run sigs.k8s.io/kustomize/kustomize/v5 build config/default | kubectl delete --ignore-not-found=true -f -
