@@ -1,5 +1,5 @@
 macs:
-- prefix: aabbccddeeff
+- prefix: aabbcc
   protocol:
     name: Redfish
   defaultCredentials:

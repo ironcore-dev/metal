@@ -4,7 +4,9 @@
 package controller
 
 import (
+	"crypto/rand"
 	"fmt"
+	"net/netip"
 	"time"
 
 	ipamv1alpha1 "github.com/ironcore-dev/ipam/api/ipam/v1alpha1"
@@ -19,12 +21,22 @@ import (
 	"github.com/ironcore-dev/metal/internal/ssa"
 )
 
+const macPrefix = "aabbcc"
+
 var _ = Describe("OOB Controller", Serial, func() {
-	mac := "aabbccddeeff"
-	timeToReady := time.Second * 3
-	shutdownTimeout := time.Second * 1
+	const timeToReady = time.Second * 3
+	const shutdownTimeout = time.Second * 1
+
+	var mac string
+	var ipAddr ipamv1alpha1.IPAddr
 
 	BeforeEach(func(ctx SpecContext) {
+		var err error
+		mac, err = generateMacAddress()
+		Expect(err).NotTo(HaveOccurred())
+		ipAddr, err = generateIpAddress()
+		Expect(err).NotTo(HaveOccurred())
+
 		Eventually(ObjectList(&ipamv1alpha1.IPList{}, &client.ListOptions{
 			Namespace: OOBTemporaryNamespaceHack,
 		})).Should(HaveField("Items", HaveLen(0)))
@@ -88,10 +100,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -129,10 +139,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -183,10 +191,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -223,7 +229,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 		}
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -256,10 +262,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -345,10 +349,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -374,7 +376,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 				GenerateName: "test-",
 				Namespace:    OOBTemporaryNamespaceHack,
 				Labels: map[string]string{
-					OOBIPMacLabel: "aabbccddee00",
+					OOBIPMacLabel: "ddeeff000000",
 					"test":        "test",
 				},
 			},
@@ -382,10 +384,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -394,7 +394,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 
 		oob := &metalv1alpha1.OOB{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "aabbccddee00",
+				Name: "ddeeff000000",
 			},
 		}
 
@@ -428,10 +428,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -499,10 +497,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -520,8 +516,7 @@ var _ = Describe("OOB Controller", Serial, func() {
 			WithTransform(readyReason, Equal(metalv1alpha1.OOBConditionReasonReady)),
 		))
 
-		var obj client.Object
-		obj, err = Object(secret)()
+		obj, err := Object(secret)()
 		Expect(err).NotTo(HaveOccurred())
 		secret = obj.(*metalv1alpha1.OOBSecret)
 		Expect(secret).NotTo(BeNil())
@@ -568,10 +563,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -607,10 +600,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -659,10 +650,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -730,10 +719,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -843,10 +830,8 @@ var _ = Describe("OOB Controller", Serial, func() {
 		Expect(k8sClient.Create(ctx, ip)).To(Succeed())
 
 		By("Patching IP reservation and state")
-		ipAddr, err := ipamv1alpha1.IPAddrFromString("1.2.3.4")
-		Expect(err).NotTo(HaveOccurred())
 		Eventually(UpdateStatus(ip, func() {
-			ip.Status.Reserved = ipAddr
+			ip.Status.Reserved = &ipAddr
 			ip.Status.State = ipamv1alpha1.CFinishedIPState
 		})).Should(Succeed())
 
@@ -925,6 +910,32 @@ var _ = Describe("OOB Controller", Serial, func() {
 		))
 	})
 })
+
+func generateMacAddress() (string, error) {
+	buf := make([]byte, 3)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return "", fmt.Errorf("cannot generate MAC address: %w", err)
+	}
+	mac := fmt.Sprintf("%s%02x%02x%02x", macPrefix, buf[0], buf[1], buf[2])
+	return mac, nil
+}
+
+func generateIpAddress() (ipamv1alpha1.IPAddr, error) {
+	buf := make([]byte, 3)
+	_, err := rand.Read(buf)
+	if err != nil {
+		return ipamv1alpha1.IPAddr{}, fmt.Errorf("cannot generate IP address: %w", err)
+	}
+	var ip netip.Addr
+	ip, err = netip.ParseAddr(fmt.Sprintf("10.%d.%d.%d", buf[0], buf[1], buf[2]))
+	if err != nil {
+		return ipamv1alpha1.IPAddr{}, fmt.Errorf("cannot generate IP address: %w", err)
+	}
+	return ipamv1alpha1.IPAddr{
+		Net: ip,
+	}, nil
+}
 
 func readyReason(o client.Object) (string, error) {
 	oob, ok := o.(*metalv1alpha1.OOB)
