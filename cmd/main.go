@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
@@ -206,7 +206,7 @@ func main() {
 		Scheme:           scheme,
 		LeaderElection:   p.leaderElection,
 		LeaderElectionID: "metal.ironcore.dev",
-		Metrics: server.Options{
+		Metrics: metricsserver.Options{
 			BindAddress:   p.metricsBindAddress,
 			SecureServing: p.secureMetrics,
 			TLSOpts:       tlsOpts,
