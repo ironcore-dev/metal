@@ -86,6 +86,10 @@ type redfishUserOEM struct {
 	} `json:"Hp,omitempty"`
 }
 
+func (b *RedfishBMC) Ping(_ context.Context) error { // FIXME
+	return fmt.Errorf("TROLOLO")
+}
+
 func redfishConnect(ctx context.Context, host string, port int32, creds Credentials) (*gofish.APIClient, error) {
 	log.Debug(ctx, "Connecting", "host", host, "user", creds.Username)
 

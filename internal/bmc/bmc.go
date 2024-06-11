@@ -14,6 +14,7 @@ type BMC interface {
 	Type() string
 	Tags() map[string]string
 	Credentials() (Credentials, time.Time)
+	Ping(ctx context.Context) error
 	EnsureInitialCredentials(ctx context.Context, defaultCreds []Credentials, tempPassword string) error
 	Connect(ctx context.Context) error
 	CreateUser(ctx context.Context, creds Credentials, tempPassword string) error
