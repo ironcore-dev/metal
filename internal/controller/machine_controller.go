@@ -69,6 +69,14 @@ const (
 	MachineSpecOOBRefName = ".spec.oobRef.Name"
 )
 
+var nonInitialStates = []metalv1alpha1.MachineState{
+	metalv1alpha1.MachineStateMaintenance,
+	metalv1alpha1.MachineStateAvailable,
+	metalv1alpha1.MachineStateReserved,
+	metalv1alpha1.MachineStateTainted,
+	metalv1alpha1.MachineStateError,
+}
+
 func NewMachineReconciler() (*MachineReconciler, error) {
 	return &MachineReconciler{}, nil
 }
