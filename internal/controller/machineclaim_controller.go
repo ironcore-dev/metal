@@ -272,7 +272,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 
 		found := false
 		for _, m := range machineList.Items {
-			if m.DeletionTimestamp != nil || m.Status.State != metalv1alpha1.MachineStateReady || (m.Spec.MachineClaimRef != nil && m.Spec.MachineClaimRef.UID != claim.UID) {
+			if m.DeletionTimestamp != nil || m.Status.State != metalv1alpha1.MachineStateAvailable || (m.Spec.MachineClaimRef != nil && m.Spec.MachineClaimRef.UID != claim.UID) {
 				continue
 			}
 			machine = m
@@ -318,7 +318,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 		UID:       claim.UID,
 	}
 
-	if machine.Status.State != metalv1alpha1.MachineStateReady {
+	if machine.Status.State == metalv1alpha1.MachineStateError {
 		log.Debug(ctx, "Removing finalizer from Machine and clearing claim ref and power")
 		var machineApply *metalv1alpha1apply.MachineApplyConfiguration
 		machineApply, err = metalv1alpha1apply.ExtractMachine(&machine, MachineClaimFieldManager)
@@ -327,6 +327,7 @@ func (r *MachineClaimReconciler) processMachine(ctx context.Context, claim *meta
 		}
 		machineApply.Finalizers = util.Clear(machineApply.Finalizers, MachineClaimFinalizer)
 		machineApply.Spec = nil
+		machineApply = machineApply.WithSpec(util.Ensure(machineApply.Spec).WithCleanupRequired(true))
 		err = r.Patch(ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineClaimFieldManager), client.ForceOwnership)
 		if err != nil {
 			return ctx, nil, nil, fmt.Errorf("cannot apply Machine: %w", err)

@@ -41,6 +41,12 @@ type MachineSpec struct {
 	// +kubebuilder:validation:Enum=Lit;Off;Blinking
 	// +optional
 	LocatorLED LED `json:"locatorLED,omitempty"`
+
+	// +optional
+	CleanupRequired bool `json:"cleanupRequired,omitempty"`
+
+	// +optional
+	Maintenance bool `json:"maintenance,omitempty"`
 }
 
 type Power string
@@ -84,7 +90,7 @@ type MachineStatus struct {
 	NetworkInterfaces []MachineNetworkInterface `json:"networkInterfaces"`
 
 	// +optional
-	// +kubebuilder:validation:Enum=Ready;Unready;Error
+	// +kubebuilder:validation:Enum=Initial;Available;Reserved;Tainted;Maintenance;Error
 	State MachineState `json:"state,omitempty"`
 
 	// +patchStrategy=merge
@@ -111,7 +117,13 @@ type MachineState string
 const (
 	MachineStateReady  MachineState = "Ready"
 	MachineStateUneady MachineState = "Unready"
-	MachineStateError  MachineState = "Error"
+
+	MachineStateInitial     MachineState = "Initial"
+	MachineStateAvailable   MachineState = "Available"
+	MachineStateReserved    MachineState = "Reserved"
+	MachineStateTainted     MachineState = "Tainted"
+	MachineStateMaintenance MachineState = "Maintenance"
+	MachineStateError       MachineState = "Error"
 )
 
 const (

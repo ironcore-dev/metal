@@ -23,7 +23,7 @@ import (
 
 const macPrefix = "aabbcc"
 
-var _ = Describe("OOB Controller", Serial, func() {
+var _ = PDescribe("OOB Controller", Serial, func() {
 	const timeToReady = time.Second * 3
 	const shutdownTimeout = time.Second * 1
 

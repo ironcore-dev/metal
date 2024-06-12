@@ -31,7 +31,12 @@ import (
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	"github.com/ironcore-dev/metal/internal/bmc"
 	"github.com/ironcore-dev/metal/internal/log"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
+)
+
+const (
+	manufacturer = "Sample"
+	serialNumber = "1234"
 )
 
 var (
@@ -59,7 +64,7 @@ var _ = BeforeSuite(func() {
 	Expect(kscheme.AddToScheme(scheme)).To(Succeed())
 	Expect(metalv1alpha1.AddToScheme(scheme)).To(Succeed())
 	Expect(ipamv1alpha1.AddToScheme(scheme)).To(Succeed())
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 
 	bmc.RegisterFake()
 

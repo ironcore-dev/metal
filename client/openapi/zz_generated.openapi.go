@@ -10,6 +10,7 @@ package openapi
 
 import (
 	v1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	common "k8s.io/kube-openapi/pkg/common"
 	spec "k8s.io/kube-openapi/pkg/validation/spec"
@@ -17,7 +18,18 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/ironcore-dev/metal/api/v1alpha1.BlockSpec":                    schema_ironcore_dev_metal_api_v1alpha1_BlockSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.CPUSpec":                      schema_ironcore_dev_metal_api_v1alpha1_CPUSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.ConsoleProtocol":              schema_ironcore_dev_metal_api_v1alpha1_ConsoleProtocol(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.DistroSpec":                   schema_ironcore_dev_metal_api_v1alpha1_DistroSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.HostSpec":                     schema_ironcore_dev_metal_api_v1alpha1_HostSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.IPMISpec":                     schema_ironcore_dev_metal_api_v1alpha1_IPMISpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.Inventory":                    schema_ironcore_dev_metal_api_v1alpha1_Inventory(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.InventoryList":                schema_ironcore_dev_metal_api_v1alpha1_InventoryList(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.InventorySpec":                schema_ironcore_dev_metal_api_v1alpha1_InventorySpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatus":              schema_ironcore_dev_metal_api_v1alpha1_InventoryStatus(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatuses":            schema_ironcore_dev_metal_api_v1alpha1_InventoryStatuses(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.LLDPSpec":                     schema_ironcore_dev_metal_api_v1alpha1_LLDPSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.Machine":                      schema_ironcore_dev_metal_api_v1alpha1_Machine(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.MachineClaim":                 schema_ironcore_dev_metal_api_v1alpha1_MachineClaim(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.MachineClaimList":             schema_ironcore_dev_metal_api_v1alpha1_MachineClaimList(ref),
@@ -28,6 +40,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/ironcore-dev/metal/api/v1alpha1.MachineNetworkInterface":      schema_ironcore_dev_metal_api_v1alpha1_MachineNetworkInterface(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.MachineSpec":                  schema_ironcore_dev_metal_api_v1alpha1_MachineSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.MachineStatus":                schema_ironcore_dev_metal_api_v1alpha1_MachineStatus(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.MemorySpec":                   schema_ironcore_dev_metal_api_v1alpha1_MemorySpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.NDPSpec":                      schema_ironcore_dev_metal_api_v1alpha1_NDPSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.NICSpec":                      schema_ironcore_dev_metal_api_v1alpha1_NICSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.NumaSpec":                     schema_ironcore_dev_metal_api_v1alpha1_NumaSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.OOB":                          schema_ironcore_dev_metal_api_v1alpha1_OOB(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.OOBList":                      schema_ironcore_dev_metal_api_v1alpha1_OOBList(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.OOBSecret":                    schema_ironcore_dev_metal_api_v1alpha1_OOBSecret(ref),
@@ -36,8 +52,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/ironcore-dev/metal/api/v1alpha1.OOBSecretStatus":              schema_ironcore_dev_metal_api_v1alpha1_OOBSecretStatus(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.OOBSpec":                      schema_ironcore_dev_metal_api_v1alpha1_OOBSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.OOBStatus":                    schema_ironcore_dev_metal_api_v1alpha1_OOBStatus(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec":     schema_ironcore_dev_metal_api_v1alpha1_PCIDeviceDescriptionSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceSpec":                schema_ironcore_dev_metal_api_v1alpha1_PCIDeviceSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.PartitionSpec":                schema_ironcore_dev_metal_api_v1alpha1_PartitionSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.PartitionTableSpec":           schema_ironcore_dev_metal_api_v1alpha1_PartitionTableSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.Prefix":                       schema_ironcore_dev_metal_api_v1alpha1_Prefix(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.Protocol":                     schema_ironcore_dev_metal_api_v1alpha1_Protocol(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.SystemSpec":                   schema_ironcore_dev_metal_api_v1alpha1_SystemSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.VirtSpec":                     schema_ironcore_dev_metal_api_v1alpha1_VirtSpec(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                     schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                             schema_k8sio_api_core_v1_Affinity(ref),
 		"k8s.io/api/core/v1.AppArmorProfile":                                      schema_k8sio_api_core_v1_AppArmorProfile(ref),
@@ -262,6 +284,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.VsphereVirtualDiskVolumeSource":                       schema_k8sio_api_core_v1_VsphereVirtualDiskVolumeSource(ref),
 		"k8s.io/api/core/v1.WeightedPodAffinityTerm":                              schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref),
 		"k8s.io/api/core/v1.WindowsSecurityContextOptions":                        schema_k8sio_api_core_v1_WindowsSecurityContextOptions(ref),
+		"k8s.io/apimachinery/pkg/api/resource.Quantity":                           schema_apimachinery_pkg_api_resource_Quantity(ref),
+		"k8s.io/apimachinery/pkg/api/resource.int64Amount":                        schema_apimachinery_pkg_api_resource_int64Amount(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                           schema_pkg_apis_meta_v1_APIGroup(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                       schema_pkg_apis_meta_v1_APIGroupList(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                        schema_pkg_apis_meta_v1_APIResource(ref),
@@ -317,6 +341,288 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	}
 }
 
+func schema_ironcore_dev_metal_api_v1alpha1_BlockSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BlockSpec contains info about block device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is a name of the device registered by Linux Kernel",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type refers to data carrier form-factor",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"rotational": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Rotational shows whether disk is solid state or not",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"system": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Bus is a type of hardware interface used to connect the disk to the system",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"model": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Model is a unique hardware part identifier",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"size": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Size is a disk space available in bytes",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"partitionTable": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PartitionTable is a partition table currently written to the disk",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PartitionTableSpec"),
+						},
+					},
+				},
+				Required: []string{"rotational"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.PartitionTableSpec"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_CPUSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CPUSpec contains info about CPUs on hsot machine.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"physicalId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PhysicalID is an ID of physical CPU",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"logicalIds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LogicalIDs is a collection of logical CPU nums related to the physical CPU (required for NUMA)",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: 0,
+										Type:    []string{"integer"},
+										Format:  "int64",
+									},
+								},
+							},
+						},
+					},
+					"cores": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cores is a number of physical cores",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"siblings": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Siblings is a number of logical CPUs/threads",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"vendorId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VendorID is a manufacturer identifire",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"family": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Family refers to processor type",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"model": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Model is a reference id of the model",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"modelName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ModelName is a common name of the processor",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"stepping": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Stepping is an iteration of the architecture",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"microcode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Microcode is a firmware reference",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"mhz": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MHz is a logical core frequency",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+					"cacheSize": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CacheSize is an L2 cache size",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"fpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FPU defines if CPU has a Floating Point Unit",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"fpuException": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FPUException",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"cpuIdLevel": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CPUIDLevel",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"wp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WP tells if WP bit is present",
+							Default:     false,
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"flags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Flags defines a list of low-level computing capabilities",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"vmxFlags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VMXFlags defines a list of virtualization capabilities",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"bugs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Bugs contains a list of known hardware bugs",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"bogoMips": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BogoMIPS is a synthetic performance metric",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+					"clFlushSize": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CLFlushSize size for cache line flushing feature",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"cacheAlignment": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CacheAlignment is a cache size",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"addressSizes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AddressSizes is an info about address transition system",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"powerManagement": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PowerManagement",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"fpu", "fpuException", "wp"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/api/resource.Quantity"},
+	}
+}
+
 func schema_ironcore_dev_metal_api_v1alpha1_ConsoleProtocol(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -339,6 +645,452 @@ func schema_ironcore_dev_metal_api_v1alpha1_ConsoleProtocol(ref common.Reference
 					},
 				},
 				Required: []string{"name", "port"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_DistroSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DistroSpec contains info about distro.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"buildVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"debianVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kernelVersion": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"asicType": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"commitID": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"buildDate": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"buildNumber": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int64",
+						},
+					},
+					"buildBy": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_HostSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "HostSpec contains type of inventorying object and in case it is a switch - SONiC version.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Hostname contains hostname",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_IPMISpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "IPMISpec contains info about IPMI module.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ipAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IPAddress is an IP address assigned to IPMI network interface",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"macAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MACAddress is a MAC address of IPMI's network interface",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_Inventory(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Inventory is the Schema for the inventories API.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.InventorySpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.InventorySpec", "github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_InventoryList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InventoryList contains a list of Inventory.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.Inventory"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.Inventory", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_InventorySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InventorySpec contains result of inventorization process on the host.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"system": {
+						SchemaProps: spec.SchemaProps{
+							Description: "System contains DMI system information",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.SystemSpec"),
+						},
+					},
+					"ipmis": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IPMIs contains info about IPMI interfaces on the host",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.IPMISpec"),
+									},
+								},
+							},
+						},
+					},
+					"blocks": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Blocks contains info about block devices on the host",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.BlockSpec"),
+									},
+								},
+							},
+						},
+					},
+					"memory": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Memory contains info block devices on the host",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.MemorySpec"),
+						},
+					},
+					"cpus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CPUs contains info about cpus, cores and threads",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.CPUSpec"),
+									},
+								},
+							},
+						},
+					},
+					"numa": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NUMA contains info about cpu/memory topology",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.NumaSpec"),
+									},
+								},
+							},
+						},
+					},
+					"pciDevices": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PCIDevices contains info about devices accessible through",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceSpec"),
+									},
+								},
+							},
+						},
+					},
+					"nics": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NICs contains info about network interfaces and network discovery",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.NICSpec"),
+									},
+								},
+							},
+						},
+					},
+					"virt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Virt is a virtualization detected on host",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.VirtSpec"),
+						},
+					},
+					"host": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Host contains info about inventorying object",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.HostSpec"),
+						},
+					},
+					"distro": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Distro contains info about OS distro",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.DistroSpec"),
+						},
+					},
+				},
+				Required: []string{"host"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.BlockSpec", "github.com/ironcore-dev/metal/api/v1alpha1.CPUSpec", "github.com/ironcore-dev/metal/api/v1alpha1.DistroSpec", "github.com/ironcore-dev/metal/api/v1alpha1.HostSpec", "github.com/ironcore-dev/metal/api/v1alpha1.IPMISpec", "github.com/ironcore-dev/metal/api/v1alpha1.MemorySpec", "github.com/ironcore-dev/metal/api/v1alpha1.NICSpec", "github.com/ironcore-dev/metal/api/v1alpha1.NumaSpec", "github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceSpec", "github.com/ironcore-dev/metal/api/v1alpha1.SystemSpec", "github.com/ironcore-dev/metal/api/v1alpha1.VirtSpec"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_InventoryStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InventoryStatus defines the observed state of Inventory.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"inventoryStatuses": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatuses"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatuses"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_InventoryStatuses(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ready": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+					"requestsCount": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+				},
+				Required: []string{"ready"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_LLDPSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "LLDPSpec is an entry received by network interface by Link Layer Discovery Protocol.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"chassisId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ChassisID is a neighbour box identifier",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"systemName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SystemName is given name to the neighbour box",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"systemDescription": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SystemDescription is a short description of the neighbour box",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"portId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PortID is a hardware identifier of the link port",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"portDescription": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PortDescription is a short description of the link port",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"capabilities": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Capabilities is a list of LLDP capabilities advertised by neighbor",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -732,6 +1484,18 @@ func schema_ironcore_dev_metal_api_v1alpha1_MachineSpec(ref common.ReferenceCall
 							Format: "",
 						},
 					},
+					"cleanupRequired": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"maintenance": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
 				},
 				Required: []string{"uuid", "oobRef"},
 			},
@@ -826,6 +1590,212 @@ func schema_ironcore_dev_metal_api_v1alpha1_MachineStatus(ref common.ReferenceCa
 		},
 		Dependencies: []string{
 			"github.com/ironcore-dev/metal/api/v1alpha1.MachineNetworkInterface", "k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_MemorySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MemorySpec contains info about RAM on host.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"total": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Total is a total amount of RAM on host",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_NDPSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NDPSpec is an entry received by IPv6 Neighbour Discovery Protocol.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"ipAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IPAddress is an IPv6 address of a neighbour",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"macAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MACAddress is an MAC address of a neighbour",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Description: "State is a state of discovery",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_NICSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NICSpec contains info about network interfaces.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is a name of the device registered by Linux Kernel",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"pciAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PCIAddress is the PCI bus address network interface is connected to",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"macAddress": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MACAddress is the MAC address of network interface",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"mtu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MTU is refers to Maximum Transmission Unit",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"speed": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Speed is a speed of network interface in Mbits/s",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"lanes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Lanes is a number of used lanes (if supported)",
+							Type:        []string{"integer"},
+							Format:      "byte",
+						},
+					},
+					"activeFEC": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ActiveFEC is an active error correction mode",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lldps": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LLDP is a collection of LLDP messages received by the network interface",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.LLDPSpec"),
+									},
+								},
+							},
+						},
+					},
+					"ndps": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NDP is a collection of NDP messages received by the network interface",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.NDPSpec"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.LLDPSpec", "github.com/ironcore-dev/metal/api/v1alpha1.NDPSpec"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_NumaSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NumaSpec describes NUMA node.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is NUMA node ID.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"cpus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CPUs is a list of CPU logical IDs in current numa node.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: 0,
+										Type:    []string{"integer"},
+										Format:  "int32",
+									},
+								},
+							},
+						},
+					},
+					"distances": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Distances contains distances to other nodes. Element index corresponds to NUMA node ID.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: 0,
+										Type:    []string{"integer"},
+										Format:  "int32",
+									},
+								},
+							},
+						},
+					},
+					"memory": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Memory contains info about NUMA node memory setup.",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.MemorySpec"),
+						},
+					},
+				},
+				Required: []string{"id", "cpus", "distances", "memory"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.MemorySpec"},
 	}
 }
 
@@ -1196,6 +2166,177 @@ func schema_ironcore_dev_metal_api_v1alpha1_OOBStatus(ref common.ReferenceCallba
 	}
 }
 
+func schema_ironcore_dev_metal_api_v1alpha1_PCIDeviceDescriptionSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PCIDeviceDescriptionSpec contains one of the options that is describing the PCI device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is a hexadecimal identifier of device property , that corresponds to the value from PCIIDs database",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is a string value of property extracted from PCIID DB",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"id", "name"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_PCIDeviceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PCIDeviceSpec contains description of PCI device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"busId": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BusID is an ID of PCI bus on the board device is attached to.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"address": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Address is an ID of device on PCI bus.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"vendor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Vendor refers to manufacturer ore device trademark.",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"),
+						},
+					},
+					"subvendor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Subvendor usually refers to the platform or co-manufacturer. E.g. Lenovo board manufactured for Intel platform (by Intel spec).",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"),
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type shows device's designation.",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"),
+						},
+					},
+					"subtype": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Subtype shows device's subsystem.",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"),
+						},
+					},
+					"class": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Class refers to generic device designation.",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"),
+						},
+					},
+					"subclass": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Subclass narrows the designation scope.",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"),
+						},
+					},
+					"interface": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProgrammingInterface specifies communication protocols.",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.PCIDeviceDescriptionSpec"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_PartitionSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PartitionSpec contains info about partition.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is a GUID of GPT partition or number for MBR partition",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is a human readable name given to the partition",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"size": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Size is a size of partition in bytes",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_PartitionTableSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PartitionTableSpec contains info about partition table on block device.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type is a format of partition table",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"partitions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Partitions are active partition records on disk",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.PartitionSpec"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.PartitionSpec"},
+	}
+}
+
 func schema_ironcore_dev_metal_api_v1alpha1_Prefix(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1229,6 +2370,67 @@ func schema_ironcore_dev_metal_api_v1alpha1_Protocol(ref common.ReferenceCallbac
 					},
 				},
 				Required: []string{"name", "port"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_SystemSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SystemSpec contains DMI system information.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is a UUID of a system board",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"manufacturer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Manufacturer refers to the company that produced the product",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"productSku": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProductSKU is a product's Stock Keeping Unit",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"serialNumber": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SerialNumber contains serial number of a system",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_VirtSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "VirtSpec contains info about detected host virtualization.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"vmType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "VMType is a type of virtual machine engine",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -14364,6 +15566,54 @@ func schema_k8sio_api_core_v1_WindowsSecurityContextOptions(ref common.Reference
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+func schema_apimachinery_pkg_api_resource_Quantity(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.EmbedOpenAPIDefinitionIntoV2Extension(common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Quantity is a fixed-point representation of a number. It provides convenient marshaling/unmarshaling in JSON and YAML, in addition to String() and AsInt64() accessors.\n\nThe serialization format is:\n\n``` <quantity>        ::= <signedNumber><suffix>\n\n\t(Note that <suffix> may be empty, from the \"\" case in <decimalSI>.)\n\n<digit>           ::= 0 | 1 | ... | 9 <digits>          ::= <digit> | <digit><digits> <number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits> <sign>            ::= \"+\" | \"-\" <signedNumber>    ::= <number> | <sign><number> <suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI> <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei\n\n\t(International System of units; See: http://physics.nist.gov/cuu/Units/binary.html)\n\n<decimalSI>       ::= m | \"\" | k | M | G | T | P | E\n\n\t(Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.)\n\n<decimalExponent> ::= \"e\" <signedNumber> | \"E\" <signedNumber> ```\n\nNo matter which of the three exponent forms is used, no quantity may represent a number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal places. Numbers larger or more precise will be capped or rounded up. (E.g.: 0.1m will rounded up to 1m.) This may be extended in the future if we require larger or smaller quantities.\n\nWhen a Quantity is parsed from a string, it will remember the type of suffix it had, and will use the same type again when it is serialized.\n\nBefore serializing, Quantity will be put in \"canonical form\". This means that Exponent/suffix will be adjusted up or down (with a corresponding increase or decrease in Mantissa) such that:\n\n- No precision is lost - No fractional digits will be emitted - The exponent (or suffix) is as large as possible.\n\nThe sign will be omitted unless the number is negative.\n\nExamples:\n\n- 1.5 will be serialized as \"1500m\" - 1.5Gi will be serialized as \"1536Mi\"\n\nNote that the quantity will NEVER be internally represented by a floating point number. That is the whole point of this exercise.\n\nNon-canonical values will still parse as long as they are well formed, but will be re-emitted in their canonical form. (So always use canonical form, or don't diff.)\n\nThis format is intended to make it difficult to use these numbers without writing some sort of special handling code in the hopes that that will cause implementors to also use a fixed point implementation.",
+				OneOf:       common.GenerateOpenAPIV3OneOfSchema(resource.Quantity{}.OpenAPIV3OneOfTypes()),
+				Format:      resource.Quantity{}.OpenAPISchemaFormat(),
+			},
+		},
+	}, common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Quantity is a fixed-point representation of a number. It provides convenient marshaling/unmarshaling in JSON and YAML, in addition to String() and AsInt64() accessors.\n\nThe serialization format is:\n\n``` <quantity>        ::= <signedNumber><suffix>\n\n\t(Note that <suffix> may be empty, from the \"\" case in <decimalSI>.)\n\n<digit>           ::= 0 | 1 | ... | 9 <digits>          ::= <digit> | <digit><digits> <number>          ::= <digits> | <digits>.<digits> | <digits>. | .<digits> <sign>            ::= \"+\" | \"-\" <signedNumber>    ::= <number> | <sign><number> <suffix>          ::= <binarySI> | <decimalExponent> | <decimalSI> <binarySI>        ::= Ki | Mi | Gi | Ti | Pi | Ei\n\n\t(International System of units; See: http://physics.nist.gov/cuu/Units/binary.html)\n\n<decimalSI>       ::= m | \"\" | k | M | G | T | P | E\n\n\t(Note that 1024 = 1Ki but 1000 = 1k; I didn't choose the capitalization.)\n\n<decimalExponent> ::= \"e\" <signedNumber> | \"E\" <signedNumber> ```\n\nNo matter which of the three exponent forms is used, no quantity may represent a number greater than 2^63-1 in magnitude, nor may it have more than 3 decimal places. Numbers larger or more precise will be capped or rounded up. (E.g.: 0.1m will rounded up to 1m.) This may be extended in the future if we require larger or smaller quantities.\n\nWhen a Quantity is parsed from a string, it will remember the type of suffix it had, and will use the same type again when it is serialized.\n\nBefore serializing, Quantity will be put in \"canonical form\". This means that Exponent/suffix will be adjusted up or down (with a corresponding increase or decrease in Mantissa) such that:\n\n- No precision is lost - No fractional digits will be emitted - The exponent (or suffix) is as large as possible.\n\nThe sign will be omitted unless the number is negative.\n\nExamples:\n\n- 1.5 will be serialized as \"1500m\" - 1.5Gi will be serialized as \"1536Mi\"\n\nNote that the quantity will NEVER be internally represented by a floating point number. That is the whole point of this exercise.\n\nNon-canonical values will still parse as long as they are well formed, but will be re-emitted in their canonical form. (So always use canonical form, or don't diff.)\n\nThis format is intended to make it difficult to use these numbers without writing some sort of special handling code in the hopes that that will cause implementors to also use a fixed point implementation.",
+				Type:        resource.Quantity{}.OpenAPISchemaType(),
+				Format:      resource.Quantity{}.OpenAPISchemaFormat(),
+			},
+		},
+	})
+}
+
+func schema_apimachinery_pkg_api_resource_int64Amount(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "int64Amount represents a fixed precision numerator and arbitrary scale exponent. It is faster than operations on inf.Dec for values that can be represented as int64.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int64",
+						},
+					},
+					"scale": {
+						SchemaProps: spec.SchemaProps{
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
+						},
+					},
+				},
+				Required: []string{"value", "scale"},
 			},
 		},
 	}

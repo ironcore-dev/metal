@@ -69,6 +69,8 @@ spec:
             properties:
               asn:
                 type: string
+              cleanupRequired:
+                type: boolean
               inventoryRef:
                 description: |-
                   LocalObjectReference contains enough information to let you locate the
@@ -172,6 +174,8 @@ spec:
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
+              maintenance:
+                type: boolean
               oobRef:
                 description: |-
                   LocalObjectReference contains enough information to let you locate the
@@ -345,8 +349,11 @@ spec:
                 type: string
               state:
                 enum:
-                - Ready
-                - Unready
+                - Initial
+                - Available
+                - Reserved
+                - Tainted
+                - Maintenance
                 - Error
                 type: string
             type: object
