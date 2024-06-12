@@ -26,6 +26,8 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories,verbs=get;list;watch
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories/status,verbs=get
 
 const (
 	MachineFieldOwner      string = "metal.ironcore.dev/machine"

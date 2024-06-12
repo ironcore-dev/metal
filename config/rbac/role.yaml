@@ -34,6 +34,20 @@ rules:
 - apiGroups:
   - metal.ironcore.dev
   resources:
+  - inventories
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - inventories/status
+  verbs:
+  - get
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
   - machineclaims
   verbs:
   - create
