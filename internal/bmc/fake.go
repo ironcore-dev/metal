@@ -78,6 +78,10 @@ func (b *FakeBMC) Credentials() (Credentials, time.Time) {
 	return b.creds, b.exp
 }
 
+func (b *FakeBMC) Ping(_ context.Context) error {
+	return nil
+}
+
 func (b *FakeBMC) EnsureInitialCredentials(_ context.Context, defaultCreds []Credentials, tempPassword string) error {
 	if len(defaultCreds) == 0 {
 		return fmt.Errorf("no default credentials to try")

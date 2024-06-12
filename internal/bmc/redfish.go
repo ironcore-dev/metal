@@ -86,6 +86,29 @@ type redfishUserOEM struct {
 	} `json:"Hp,omitempty"`
 }
 
+func (b *RedfishBMC) Ping(_ context.Context) error {
+	var port int32
+	if b.port == 0 {
+		port = 443
+	} else {
+		port = b.port
+	}
+
+	hostAndPort := net.JoinHostPort(b.host, strconv.FormatInt(int64(port), 10))
+
+	config := gofish.ClientConfig{
+		Endpoint: fmt.Sprintf("https://%s", hostAndPort),
+		Insecure: true,
+	}
+	c, err := gofish.Connect(config)
+	if err != nil {
+		return err
+	}
+	defer c.Logout()
+
+	return nil
+}
+
 func redfishConnect(ctx context.Context, host string, port int32, creds Credentials) (*gofish.APIClient, error) {
 	log.Debug(ctx, "Connecting", "host", host, "user", creds.Username)
 

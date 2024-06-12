@@ -97,6 +97,10 @@ func outputmapspace(ml string, mi *map[string]string) {
 	}
 }
 
+func (b *IPMIBMC) Ping(_ context.Context) error {
+	return nil
+}
+
 func ipmiFindWorkingCredentials(ctx context.Context, host string, port int32, defaultCreds []Credentials, tempPassword string) (Credentials, error) {
 	if len(defaultCreds) == 0 {
 		return Credentials{}, fmt.Errorf("no default credentials to try")

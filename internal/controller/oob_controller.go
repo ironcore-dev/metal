@@ -552,6 +552,10 @@ func (r *OOBReconciler) reconcileEndpoint(ctx context.Context, oob *metalv1alpha
 			if i.DeletionTimestamp != nil || i.Status.State != ipamv1alpha1.CFinishedIPState || i.Status.Reserved == nil || !i.Status.Reserved.Net.IsValid() {
 				continue
 			}
+			err = r.pingBMC(ctx, oob, i.Status.Reserved.String())
+			if err != nil {
+				continue
+			}
 			ip = i
 			found = true
 			ctx = log.WithValues(ctx, "ip", ip.Status.Reserved.String())
@@ -610,6 +614,10 @@ func (r *OOBReconciler) reconcileEndpoint(ctx context.Context, oob *metalv1alpha
 	if ip.Status.State != ipamv1alpha1.CFinishedIPState || ip.Status.Reserved == nil || !ip.Status.Reserved.Net.IsValid() {
 		return r.setError(ctx, oob, apply, status, OOBErrorBadEndpoint, fmt.Errorf("endpoint has no valid IP address"))
 	}
+	err := r.pingBMC(ctx, oob, ip.Status.Reserved.String())
+	if err != nil {
+		return r.setError(ctx, oob, apply, status, OOBErrorBadEndpoint, err)
+	}
 
 	if oob.Status.State == metalv1alpha1.OOBStateError {
 		cond, _ := ssa.GetCondition(oob.Status.Conditions, metalv1alpha1.OOBConditionTypeReady)
@@ -623,6 +631,41 @@ func (r *OOBReconciler) reconcileEndpoint(ctx context.Context, oob *metalv1alpha
 	}
 
 	return context.WithValue(ctx, ctxkOOBHost{}, ip.Status.Reserved.String()), apply, status, 0, nil
+}
+
+func (r *OOBReconciler) pingBMC(ctx context.Context, oob *metalv1alpha1.OOB, host string) error {
+	var proto metalv1alpha1.ProtocolName
+	var flags map[string]string
+	var port int32
+
+	if oob.Spec.Protocol == nil {
+		a, ok := r.macDB.Get(oob.Spec.MACAddress)
+		if !ok {
+			return fmt.Errorf("cannot find MAC address in MAC DB: %s", oob.Spec.MACAddress)
+		}
+		if a.Ignore {
+			return fmt.Errorf("MAC address is ignored")
+		}
+		proto = a.Protocol.Name
+		flags = a.Flags
+		port = a.Protocol.Port
+	} else {
+		proto = oob.Spec.Protocol.Name
+		flags = oob.Spec.Flags
+		port = oob.Spec.Protocol.Port
+	}
+
+	b, err := bmc.NewBMC(string(proto), flags, host, port, bmc.Credentials{}, time.Time{})
+	if err != nil {
+		return fmt.Errorf("cannot initialize BMC: %w", err)
+	}
+
+	err = b.Ping(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot ping BMC: %w", err)
+	}
+
+	return nil
 }
 
 func (r *OOBReconciler) reconcileCredentials(ctx context.Context, oob *metalv1alpha1.OOB) (context.Context, *metalv1alpha1apply.OOBApplyConfiguration, *metalv1alpha1apply.OOBStatusApplyConfiguration, time.Duration, error) {
