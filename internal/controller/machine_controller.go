@@ -11,11 +11,6 @@ import (
 	"slices"
 	"strings"
 
-	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
-	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
-	"github.com/ironcore-dev/metal/internal/factory"
-	"github.com/ironcore-dev/metal/internal/log"
-	"github.com/ironcore-dev/metal/internal/ssa"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
@@ -23,6 +18,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
+	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
+	"github.com/ironcore-dev/metal/internal/factory"
+	"github.com/ironcore-dev/metal/internal/log"
+	"github.com/ironcore-dev/metal/internal/ssa"
 )
 
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines,verbs=get;list;watch;create;update;patch;delete

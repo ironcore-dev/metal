@@ -86,7 +86,7 @@ type redfishUserOEM struct {
 	} `json:"Hp,omitempty"`
 }
 
-func (b *RedfishBMC) Ping(_ context.Context) error { // FIXME
+func (b *RedfishBMC) Ping(_ context.Context) error {
 	var port int32
 	if b.port == 0 {
 		port = 443

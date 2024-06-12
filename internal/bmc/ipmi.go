@@ -97,7 +97,7 @@ func outputmapspace(ml string, mi *map[string]string) {
 	}
 }
 
-func (b *IPMIBMC) Ping(_ context.Context) error { // FIXME
+func (b *IPMIBMC) Ping(_ context.Context) error {
 	return nil
 }
 
