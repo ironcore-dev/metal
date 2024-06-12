@@ -5,7 +5,9 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -88,12 +90,23 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	machineApply := r.reconcile(ctx, &machine)
-	return ctrl.Result{}, r.Status().Patch(
-		ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+	base := machine.DeepCopy()
+	r.reconcile(ctx, &machine)
+
+	if resourceChanged(*base, machine) {
+		machineApply := convertToApplyConfiguration(*base, machine)
+		return ctrl.Result{}, r.Patch(
+			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+	}
+	if subresourceChanged(*base, machine) {
+		machineApply := convertToApplyConfiguration(*base, machine)
+		return ctrl.Result{}, r.Status().Patch(
+			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+	}
+	return ctrl.Result{}, nil
 }
 
-func (r *MachineReconciler) reconcile(ctx context.Context, machine *metalv1alpha1.Machine) *metalv1alpha1apply.MachineApplyConfiguration {
+func (r *MachineReconciler) reconcile(ctx context.Context, machine *metalv1alpha1.Machine) {
 	r.fillConditions(machine)
 	if machine.Spec.Maintenance {
 		machine.Status.State = metalv1alpha1.MachineStateMaintenance
@@ -104,7 +117,6 @@ func (r *MachineReconciler) reconcile(ctx context.Context, machine *metalv1alpha
 		r.evaluateAvailability(machine)
 	}
 	r.evaluateErrorState(machine)
-	return convertToApplyConfiguration(machine)
 }
 
 func (r *MachineReconciler) evaluateConditions(ctx context.Context, machine *metalv1alpha1.Machine) {
@@ -452,74 +464,55 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func convertToApplyConfiguration(machine *metalv1alpha1.Machine) *metalv1alpha1apply.MachineApplyConfiguration {
-	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace).
-		WithGeneration(machine.Generation).
-		WithLabels(machine.Labels).
-		WithAnnotations(machine.Annotations)
-
-	specApply := metalv1alpha1apply.MachineSpec().
-		WithUUID(machine.Spec.UUID).
-		WithOOBRef(machine.Spec.OOBRef).
-		WithASN(machine.Spec.ASN).
-		WithCleanupRequired(machine.Spec.CleanupRequired).
-		WithMaintenance(machine.Spec.Maintenance)
-	if machine.Spec.LocatorLED != "" {
-		specApply = specApply.WithLocatorLED(machine.Spec.LocatorLED)
-	}
-	if machine.Spec.Power != "" {
+func convertToApplyConfiguration(base, machine metalv1alpha1.Machine) *metalv1alpha1apply.MachineApplyConfiguration {
+	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
+	specApply := metalv1alpha1apply.MachineSpec()
+	if base.Spec.Power != machine.Spec.Power && machine.Spec.Power != "" {
 		specApply = specApply.WithPower(machine.Spec.Power)
 	}
-	if machine.Spec.InventoryRef != nil {
-		specApply = specApply.WithInventoryRef(*machine.Spec.InventoryRef)
-	}
-	if machine.Spec.MachineClaimRef != nil {
-		specApply = specApply.WithMachineClaimRef(*machine.Spec.MachineClaimRef)
-	}
-	if machine.Spec.LoopbackAddressRef != nil {
-		specApply = specApply.WithLoopbackAddressRef(*machine.Spec.LoopbackAddressRef)
-	}
 
-	nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0, len(machine.Status.NetworkInterfaces))
-	for _, nic := range machine.Status.NetworkInterfaces {
-		nicApply := metalv1alpha1apply.MachineNetworkInterface().
-			WithName(nic.Name).
-			WithMacAddress(nic.MacAddress)
-		if nic.IPRef != nil {
-			nicApply = nicApply.WithIPRef(*nic.IPRef)
+	statusApply := metalv1alpha1apply.MachineStatus()
+	if reflect.DeepEqual(base.Status.NetworkInterfaces, machine.Status.NetworkInterfaces) {
+		nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0, len(machine.Status.NetworkInterfaces))
+		for _, nic := range machine.Status.NetworkInterfaces {
+			nicApply := metalv1alpha1apply.MachineNetworkInterface().
+				WithName(nic.Name).
+				WithMacAddress(nic.MacAddress)
+			if nic.IPRef != nil {
+				nicApply = nicApply.WithIPRef(*nic.IPRef)
+			}
+			if nic.SwitchRef != nil {
+				nicApply = nicApply.WithSwitchRef(*nic.SwitchRef)
+			}
+			nicApplyList = append(nicApplyList, nicApply)
 		}
-		if nic.SwitchRef != nil {
-			nicApply = nicApply.WithSwitchRef(*nic.SwitchRef)
+		statusApply = statusApply.WithNetworkInterfaces(nicApplyList...)
+	}
+	if reflect.DeepEqual(base.Status.Conditions, machine.Status.Conditions) {
+		conditionsApply := make([]*v1.ConditionApplyConfiguration, 0, len(machine.Status.Conditions))
+		for _, c := range machine.Status.Conditions {
+			conditionApply := v1.Condition().
+				WithType(c.Type).
+				WithStatus(c.Status).
+				WithReason(c.Reason).
+				WithMessage(c.Message).
+				WithLastTransitionTime(c.LastTransitionTime).
+				WithObservedGeneration(c.ObservedGeneration)
+			conditionsApply = append(conditionsApply, conditionApply)
 		}
-		nicApplyList = append(nicApplyList, nicApply)
+		statusApply = statusApply.WithConditions(conditionsApply...)
 	}
-
-	conditionsApply := make([]*v1.ConditionApplyConfiguration, 0, len(machine.Status.Conditions))
-	for _, c := range machine.Status.Conditions {
-		conditionApply := v1.Condition().
-			WithType(c.Type).
-			WithStatus(c.Status).
-			WithReason(c.Reason).
-			WithMessage(c.Message).
-			WithLastTransitionTime(c.LastTransitionTime).
-			WithObservedGeneration(c.ObservedGeneration)
-		conditionsApply = append(conditionsApply, conditionApply)
+	if base.Status.SKU != machine.Status.SKU {
+		statusApply = statusApply.WithSKU(machine.Status.SKU)
 	}
-	statusApply := metalv1alpha1apply.MachineStatus().
-		WithSKU(machine.Status.SKU).
-		WithSerialNumber(machine.Status.SerialNumber).
-		WithManufacturer(machine.Status.Manufacturer).
-		WithConditions(conditionsApply...).
-		WithState(machine.Status.State).
-		WithNetworkInterfaces(nicApplyList...)
-	if machine.Status.LocatorLED != "" {
-		statusApply = statusApply.WithLocatorLED(machine.Status.LocatorLED)
+	if base.Status.SerialNumber != machine.Status.SerialNumber {
+		statusApply = statusApply.WithSerialNumber(machine.Status.SerialNumber)
 	}
-	if machine.Status.Power != "" {
-		statusApply = statusApply.WithPower(machine.Status.Power)
+	if base.Status.Manufacturer != machine.Status.Manufacturer {
+		statusApply = statusApply.WithManufacturer(machine.Status.Manufacturer)
 	}
-	if machine.Status.ShutdownDeadline != nil {
-		statusApply = statusApply.WithShutdownDeadline(*machine.Status.ShutdownDeadline)
+	if base.Status.State != machine.Status.State {
+		statusApply = statusApply.WithState(machine.Status.State)
 	}
 
 	return machineApply.WithSpec(specApply).WithStatus(statusApply)
@@ -530,4 +523,27 @@ func convertMacAddress(src string) string {
 	mac = strings.ReplaceAll(mac, ":", "")
 	mac = strings.ReplaceAll(mac, "-", "")
 	return mac
+}
+
+func resourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
+	return metadataChanged(objOld, objNew) || specChanged(objOld, objNew)
+}
+
+func metadataChanged(objOld, objNew metalv1alpha1.Machine) bool {
+	labelsChanged := !reflect.DeepEqual(objOld.GetLabels(), objNew.GetLabels())
+	annotationsChanged := !reflect.DeepEqual(objOld.GetAnnotations(), objNew.GetAnnotations())
+	finalizersChanged := !reflect.DeepEqual(objOld.GetFinalizers(), objNew.GetFinalizers())
+	return labelsChanged || annotationsChanged || finalizersChanged
+}
+
+func specChanged(objOld, objNew metalv1alpha1.Machine) bool {
+	oldSpec, _ := json.Marshal(objOld.Spec)
+	newSpec, _ := json.Marshal(objNew.Spec)
+	return !reflect.DeepEqual(oldSpec, newSpec)
+}
+
+func subresourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
+	oldStatus, _ := json.Marshal(objOld.Status)
+	newStatus, _ := json.Marshal(objNew.Status)
+	return !reflect.DeepEqual(oldStatus, newStatus)
 }
