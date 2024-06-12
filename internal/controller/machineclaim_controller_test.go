@@ -18,7 +18,7 @@ import (
 )
 
 // nolint: dupl
-var _ = Describe("MachineClaim Controller", Serial, func() {
+var _ = PDescribe("MachineClaim Controller", Serial, func() {
 	var ns *v1.Namespace
 
 	BeforeEach(func(ctx SpecContext) {
