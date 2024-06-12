@@ -17,7 +17,7 @@ import (
 )
 
 // nolint: dupl
-var _ = PDescribe("Machine Controller", Serial, func() {
+var _ = Describe("Machine Controller", Serial, func() {
 	Context("when related resources not exist", func() {
 		It("should fill conditions with status False", func(ctx SpecContext) {
 			var idx int
