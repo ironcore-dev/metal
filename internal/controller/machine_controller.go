@@ -473,7 +473,7 @@ func convertToApplyConfiguration(base, machine metalv1alpha1.Machine) *metalv1al
 	}
 
 	statusApply := metalv1alpha1apply.MachineStatus()
-	if reflect.DeepEqual(base.Status.NetworkInterfaces, machine.Status.NetworkInterfaces) {
+	if networkInterfacesChanged(base.Status.NetworkInterfaces, machine.Status.NetworkInterfaces) {
 		nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0, len(machine.Status.NetworkInterfaces))
 		for _, nic := range machine.Status.NetworkInterfaces {
 			nicApply := metalv1alpha1apply.MachineNetworkInterface().
@@ -489,7 +489,7 @@ func convertToApplyConfiguration(base, machine metalv1alpha1.Machine) *metalv1al
 		}
 		statusApply = statusApply.WithNetworkInterfaces(nicApplyList...)
 	}
-	if reflect.DeepEqual(base.Status.Conditions, machine.Status.Conditions) {
+	if conditionsChanged(base.Status.Conditions, machine.Status.Conditions) {
 		conditionsApply := make([]*v1.ConditionApplyConfiguration, 0, len(machine.Status.Conditions))
 		for _, c := range machine.Status.Conditions {
 			conditionApply := v1.Condition().
@@ -547,4 +547,22 @@ func subresourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
 	oldStatus, _ := json.Marshal(objOld.Status)
 	newStatus, _ := json.Marshal(objNew.Status)
 	return !reflect.DeepEqual(oldStatus, newStatus)
+}
+
+func conditionsChanged(oldData, newData []metav1.Condition) bool {
+	if len(oldData) != len(newData) {
+		return true
+	}
+	oldConditions, _ := json.Marshal(oldData)
+	newConditions, _ := json.Marshal(newData)
+	return !reflect.DeepEqual(oldConditions, newConditions)
+}
+
+func networkInterfacesChanged(oldData, newData []metalv1alpha1.MachineNetworkInterface) bool {
+	if len(oldData) != len(newData) {
+		return true
+	}
+	oldNetworkInterfaces, _ := json.Marshal(oldData)
+	newNetworkInterfaces, _ := json.Marshal(newData)
+	return !reflect.DeepEqual(oldNetworkInterfaces, newNetworkInterfaces)
 }
