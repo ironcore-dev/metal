@@ -118,14 +118,20 @@ func (r *MachineReconciler) reconcile(
 	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
 	machineStatusApply := metalv1alpha1apply.MachineStatus()
 	r.fillConditions(machine, machineStatusApply)
-	if machine.Spec.Maintenance {
+	switch {
+	case machine.Spec.Maintenance:
 		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateMaintenance)
-	} else {
+	case machine.Spec.InventoryRef == nil && !slices.Contains(nonInitialStates, machine.Status.State):
+		if machine.Spec.Power != metalv1alpha1.PowerOn {
+			return machineApply.WithSpec(metalv1alpha1apply.MachineSpec().WithPower(metalv1alpha1.PowerOn))
+		}
+	default:
 		r.evaluateConditions(ctx, machine, machineStatusApply)
 		r.evaluateCleanupRequired(machine, machineStatusApply)
 		r.evaluateReadiness(machine, machineStatusApply)
 		r.evaluateAvailability(machine, machineStatusApply)
 	}
+
 	r.evaluateErrorState(machine, machineStatusApply)
 	machineApply = machineApply.WithStatus(machineStatusApply)
 	return machineApply
@@ -556,7 +562,10 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return requests
 			}
 			for _, machine := range machineList.Items {
-				if machine.Spec.UUID == source.Name {
+				if machine.Spec.InventoryRef == nil {
+					continue
+				}
+				if machine.Spec.InventoryRef.Name == source.Name {
 					requests = append(requests, reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name: machine.GetName(),
@@ -569,95 +578,9 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// func convertToApplyConfiguration(base, machine metalv1alpha1.Machine) *metalv1alpha1apply.MachineApplyConfiguration {
-// 	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
-// 	specApply := metalv1alpha1apply.MachineSpec()
-// 	if base.Spec.Power != machine.Spec.Power && machine.Spec.Power != "" {
-// 		specApply = specApply.WithPower(machine.Spec.Power)
-// 	}
-//
-// 	statusApply := metalv1alpha1apply.MachineStatus()
-// 	if networkInterfacesChanged(base.Status.NetworkInterfaces, machine.Status.NetworkInterfaces) {
-// 		nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0, len(machine.Status.NetworkInterfaces))
-// 		for _, nic := range machine.Status.NetworkInterfaces {
-// 			nicApply := metalv1alpha1apply.MachineNetworkInterface().
-// 				WithName(nic.Name).
-// 				WithMacAddress(nic.MacAddress)
-// 			if nic.IPRef != nil {
-// 				nicApply = nicApply.WithIPRef(*nic.IPRef)
-// 			}
-// 			if nic.SwitchRef != nil {
-// 				nicApply = nicApply.WithSwitchRef(*nic.SwitchRef)
-// 			}
-// 			nicApplyList = append(nicApplyList, nicApply)
-// 		}
-// 		statusApply = statusApply.WithNetworkInterfaces(nicApplyList...)
-// 	}
-// 	if conditionsChanged(base.Status.Conditions, machine.Status.Conditions) {
-// 		conditionsApply := make([]*v1.ConditionApplyConfiguration, 0, len(machine.Status.Conditions))
-// 		for _, c := range machine.Status.Conditions {
-// 			conditionApply := v1.Condition().
-// 				WithType(c.Type).
-// 				WithStatus(c.Status).
-// 				WithReason(c.Reason).
-// 				WithMessage(c.Message).
-// 				WithLastTransitionTime(c.LastTransitionTime).
-// 				WithObservedGeneration(c.ObservedGeneration)
-// 			conditionsApply = append(conditionsApply, conditionApply)
-// 		}
-// 		statusApply = statusApply.WithConditions(conditionsApply...)
-// 	}
-// 	if base.Status.State != machine.Status.State {
-// 		statusApply = statusApply.WithState(machine.Status.State)
-// 	}
-//
-// 	return machineApply.WithSpec(specApply).WithStatus(statusApply)
-// }
-
 func convertMacAddress(src string) string {
 	var mac = src
 	mac = strings.ReplaceAll(mac, ":", "")
 	mac = strings.ReplaceAll(mac, "-", "")
 	return mac
 }
-
-// func resourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
-// 	return metadataChanged(objOld, objNew) || specChanged(objOld, objNew)
-// }
-
-// func metadataChanged(objOld, objNew metalv1alpha1.Machine) bool {
-// 	labelsChanged := !reflect.DeepEqual(objOld.GetLabels(), objNew.GetLabels())
-// 	annotationsChanged := !reflect.DeepEqual(objOld.GetAnnotations(), objNew.GetAnnotations())
-// 	finalizersChanged := !reflect.DeepEqual(objOld.GetFinalizers(), objNew.GetFinalizers())
-// 	return labelsChanged || annotationsChanged || finalizersChanged
-// }
-
-// func specChanged(objOld, objNew metalv1alpha1.Machine) bool {
-// 	oldSpec, _ := json.Marshal(objOld.Spec)
-// 	newSpec, _ := json.Marshal(objNew.Spec)
-// 	return !reflect.DeepEqual(oldSpec, newSpec)
-// }
-
-// func subresourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
-// 	oldStatus, _ := json.Marshal(objOld.Status)
-// 	newStatus, _ := json.Marshal(objNew.Status)
-// 	return !reflect.DeepEqual(oldStatus, newStatus)
-// }
-
-// func conditionsChanged(oldData, newData []metav1.Condition) bool {
-// 	if len(oldData) != len(newData) {
-// 		return true
-// 	}
-// 	oldConditions, _ := json.Marshal(oldData)
-// 	newConditions, _ := json.Marshal(newData)
-// 	return !reflect.DeepEqual(oldConditions, newConditions)
-// }
-
-// func networkInterfacesChanged(oldData, newData []metalv1alpha1.MachineNetworkInterface) bool {
-// 	if len(oldData) != len(newData) {
-// 		return true
-// 	}
-// 	oldNetworkInterfaces, _ := json.Marshal(oldData)
-// 	newNetworkInterfaces, _ := json.Marshal(newData)
-// 	return !reflect.DeepEqual(oldNetworkInterfaces, newNetworkInterfaces)
-// }
