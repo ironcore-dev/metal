@@ -18,9 +18,9 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stmcginnis/gofish v0.18.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.30.1
-	k8s.io/apimachinery v0.30.1
-	k8s.io/client-go v0.30.1
+	k8s.io/api v0.30.2
+	k8s.io/apimachinery v0.30.2
+	k8s.io/client-go v0.30.2
 	k8s.io/code-generator v0.30.1
 	k8s.io/klog/v2 v2.120.1
 	k8s.io/kube-openapi v0.0.0-20240430033511-f0e62f92d13f
