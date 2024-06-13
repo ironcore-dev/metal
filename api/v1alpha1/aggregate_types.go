@@ -54,6 +54,10 @@ type Aggregate struct {
 	Status AggregateStatus `json:"status,omitempty"`
 }
 
+func init() {
+	SchemeBuilder.Register(&Aggregate{}, &AggregateList{})
+}
+
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

@@ -8,9 +8,12 @@ import (
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
 	"github.com/ironcore-dev/metal/internal/log"
 	"github.com/ironcore-dev/metal/internal/ssa"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=aggregates,verbs=get;list;watch;create;update;patch;delete
@@ -123,5 +126,30 @@ func (r *AggregateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.Aggregate{}).
+		Watches(&metalv1alpha1.Inventory{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
+			requests := make([]reconcile.Request, 0)
+			inventory, ok := object.(*metalv1alpha1.Inventory)
+			if !ok {
+				return requests
+			}
+			if !inventory.DeletionTimestamp.IsZero() {
+				return requests
+			}
+
+			aggregateList := &metalv1alpha1.AggregateList{}
+			if err := r.List(ctx, aggregateList); err != nil {
+				log.Error(ctx, fmt.Errorf("failed to list aggregate: %w", err))
+				return requests
+			}
+			for _, aggregate := range aggregateList.Items {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Namespace: aggregate.Namespace,
+						Name:      aggregate.Name,
+					},
+				})
+			}
+			return requests
+		})).
 		Complete(r)
 }

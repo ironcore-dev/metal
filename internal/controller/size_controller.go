@@ -8,9 +8,12 @@ import (
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
 	"github.com/ironcore-dev/metal/internal/log"
 	"github.com/ironcore-dev/metal/internal/ssa"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -148,5 +151,39 @@ func (r *SizeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.Size{}).
+		Watches(&metalv1alpha1.Inventory{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
+			requests := make([]reconcile.Request, 0)
+			inventory, ok := object.(*metalv1alpha1.Inventory)
+			if !ok {
+				return requests
+			}
+			if !inventory.DeletionTimestamp.IsZero() {
+				return requests
+			}
+
+			sizeList := &metalv1alpha1.SizeList{}
+			if err := r.List(ctx, sizeList); err != nil {
+				log.Error(ctx, fmt.Errorf("failed to list size: %w", err))
+				return requests
+			}
+			for _, size := range sizeList.Items {
+				matches, err := size.Matches(inventory)
+				if err != nil {
+					log.Error(ctx, fmt.Errorf("failed to match size: %w", err))
+					continue
+				}
+				sizeLabel := size.GetMatchLabel()
+				_, labelExist := inventory.Labels[sizeLabel]
+				if matches && !labelExist {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Namespace: size.Namespace,
+							Name:      size.Name,
+						},
+					})
+				}
+			}
+			return requests
+		})).
 		Complete(r)
 }

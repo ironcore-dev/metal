@@ -27,7 +27,6 @@ type SizeStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +genclient
 
 // Size is the Schema for the sizes API.
@@ -40,13 +39,16 @@ type Size struct {
 }
 
 // +kubebuilder:object:root=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SizeList contains a list of Size.
 type SizeList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Size `json:"items"`
+}
+
+func init() {
+	SchemeBuilder.Register(&Size{}, &SizeList{})
 }
 
 func GetSizeMatchLabel(sizeName string) string {

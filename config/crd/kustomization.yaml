@@ -4,6 +4,8 @@ resources:
 - bases/metal.ironcore.dev_oobs.yaml
 - bases/metal.ironcore.dev_oobsecrets.yaml
 - bases/metal.ironcore.dev_inventories.yaml
+- bases/metal.ironcore.dev_aggregates.yaml
+- bases/metal.ironcore.dev_sizes.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:
