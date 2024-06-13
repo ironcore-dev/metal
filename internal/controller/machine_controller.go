@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -138,7 +139,7 @@ func (r *MachineReconciler) evaluateCleanupRequired(
 ) {
 	r.sanitize(machine, machineStatusApply)
 	if machine.Spec.CleanupRequired {
-		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateTainted)
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateTainted)
 	}
 }
 
@@ -187,7 +188,7 @@ func (r *MachineReconciler) initialize(
 			WithObservedGeneration(machine.Generation)
 	}
 	machineStatusApply.Conditions[idx] = *condition
-	machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateInitial)
+	machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateInitial)
 }
 
 func (r *MachineReconciler) inventorize(
@@ -386,14 +387,15 @@ func (r *MachineReconciler) evaluateAvailability(
 	}
 
 	if machine.Spec.MachineClaimRef != nil && machine.Spec.MachineClaimRef.Name != "" {
-		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateReserved)
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateReserved)
 	} else {
-		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateAvailable)
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateAvailable)
 	}
 }
 
+// nolint: staticcheck
 func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine, machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration) {
-	conditionsToApply := make([]*v1.ConditionApplyConfiguration, 0)
+	conditionsToApply := make([]v1.ConditionApplyConfiguration, 0)
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
 		return condition.Type == MachineInitializedConditionType
 	}); idx < 0 {
@@ -404,17 +406,17 @@ func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine, machi
 			WithMessage(MachineInitializedConditionNegMessage).
 			WithLastTransitionTime(metav1.Now()).
 			WithObservedGeneration(machine.Generation)
-		conditionsToApply = append(conditionsToApply, condition)
+		conditionsToApply = append(conditionsToApply, *condition)
 	} else {
 		c := machine.Status.Conditions[idx]
-		conditionApply := v1.Condition().
+		condition := v1.Condition().
 			WithType(c.Type).
 			WithStatus(c.Status).
 			WithReason(c.Reason).
 			WithMessage(c.Message).
 			WithLastTransitionTime(c.LastTransitionTime).
 			WithObservedGeneration(c.ObservedGeneration)
-		conditionsToApply = append(conditionsToApply, conditionApply)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
 
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
@@ -427,17 +429,17 @@ func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine, machi
 			WithMessage(MachineInventoriedConditionNegMessage).
 			WithLastTransitionTime(metav1.Now()).
 			WithObservedGeneration(machine.Generation)
-		conditionsToApply = append(conditionsToApply, condition)
+		conditionsToApply = append(conditionsToApply, *condition)
 	} else {
 		c := machine.Status.Conditions[idx]
-		conditionApply := v1.Condition().
+		condition := v1.Condition().
 			WithType(c.Type).
 			WithStatus(c.Status).
 			WithReason(c.Reason).
 			WithMessage(c.Message).
 			WithLastTransitionTime(c.LastTransitionTime).
 			WithObservedGeneration(c.ObservedGeneration)
-		conditionsToApply = append(conditionsToApply, conditionApply)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
 
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
@@ -450,17 +452,17 @@ func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine, machi
 			WithMessage(MachineClassifiedConditionNegMessage).
 			WithLastTransitionTime(metav1.Now()).
 			WithObservedGeneration(machine.Generation)
-		conditionsToApply = append(conditionsToApply, condition)
+		conditionsToApply = append(conditionsToApply, *condition)
 	} else {
 		c := machine.Status.Conditions[idx]
-		conditionApply := v1.Condition().
+		condition := v1.Condition().
 			WithType(c.Type).
 			WithStatus(c.Status).
 			WithReason(c.Reason).
 			WithMessage(c.Message).
 			WithLastTransitionTime(c.LastTransitionTime).
 			WithObservedGeneration(c.ObservedGeneration)
-		conditionsToApply = append(conditionsToApply, conditionApply)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
 
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
@@ -473,17 +475,17 @@ func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine, machi
 			WithMessage(MachineSanitizedConditionNegMessage).
 			WithLastTransitionTime(metav1.Now()).
 			WithObservedGeneration(machine.Generation)
-		conditionsToApply = append(conditionsToApply, condition)
+		conditionsToApply = append(conditionsToApply, *condition)
 	} else {
 		c := machine.Status.Conditions[idx]
-		conditionApply := v1.Condition().
+		condition := v1.Condition().
 			WithType(c.Type).
 			WithStatus(c.Status).
 			WithReason(c.Reason).
 			WithMessage(c.Message).
 			WithLastTransitionTime(c.LastTransitionTime).
 			WithObservedGeneration(c.ObservedGeneration)
-		conditionsToApply = append(conditionsToApply, conditionApply)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
 
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
@@ -496,19 +498,19 @@ func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine, machi
 			WithMessage(MachineReadyConditionNegMessage).
 			WithLastTransitionTime(metav1.Now()).
 			WithObservedGeneration(machine.Generation)
-		conditionsToApply = append(conditionsToApply, condition)
+		conditionsToApply = append(conditionsToApply, *condition)
 	} else {
 		c := machine.Status.Conditions[idx]
-		conditionApply := v1.Condition().
+		condition := v1.Condition().
 			WithType(c.Type).
 			WithStatus(c.Status).
 			WithReason(c.Reason).
 			WithMessage(c.Message).
 			WithLastTransitionTime(c.LastTransitionTime).
 			WithObservedGeneration(c.ObservedGeneration)
-		conditionsToApply = append(conditionsToApply, conditionApply)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
-	machineStatusApply = machineStatusApply.WithConditions(conditionsToApply...)
+	machineStatusApply.Conditions = conditionsToApply
 }
 
 func (r *MachineReconciler) evaluateErrorState(
@@ -524,7 +526,7 @@ func (r *MachineReconciler) evaluateErrorState(
 	//  If reserved machine will get into error state, then machine claim controller will cleanup spec.machineClaimRef.
 	//  Therefore, machine controller will not set Reserved state back, after error is resolved.
 	if machine.Spec.MachineClaimRef == nil || machine.Spec.MachineClaimRef.Name == "" {
-		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateError)
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateError)
 	}
 }
 
