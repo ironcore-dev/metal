@@ -34,6 +34,32 @@ rules:
 - apiGroups:
   - metal.ironcore.dev
   resources:
+  - aggregates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - aggregates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - aggregates/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
   - inventories
   verbs:
   - get
@@ -45,6 +71,8 @@ rules:
   - inventories/status
   verbs:
   - get
+  - patch
+  - update
 - apiGroups:
   - metal.ironcore.dev
   resources:
@@ -144,6 +172,32 @@ rules:
   - metal.ironcore.dev
   resources:
   - oobsecrets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - sizes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - sizes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - sizes/status
   verbs:
   - get
   - patch

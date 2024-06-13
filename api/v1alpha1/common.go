@@ -8,13 +8,15 @@ import (
 	"net/netip"
 )
 
+const null = "null"
+
 type Prefix struct {
 	netip.Prefix `json:"-"`
 }
 
 //goland:noinspection GoMixedReceiverTypes
 func (p *Prefix) UnmarshalJSON(b []byte) error {
-	if len(b) == 4 && string(b) == "null" {
+	if len(b) == 4 && string(b) == null {
 		p.Prefix = netip.Prefix{}
 		return nil
 	}
@@ -38,7 +40,7 @@ func (p *Prefix) UnmarshalJSON(b []byte) error {
 //goland:noinspection GoMixedReceiverTypes
 func (p *Prefix) MarshalJSON() ([]byte, error) {
 	if p.IsZero() {
-		return []byte("null"), nil
+		return []byte(null), nil
 	}
 
 	return json.Marshal(p.String())

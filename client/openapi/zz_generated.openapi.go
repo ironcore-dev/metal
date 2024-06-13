@@ -18,9 +18,17 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/ironcore-dev/metal/api/v1alpha1.Aggregate":                    schema_ironcore_dev_metal_api_v1alpha1_Aggregate(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.AggregateItem":                schema_ironcore_dev_metal_api_v1alpha1_AggregateItem(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.AggregateList":                schema_ironcore_dev_metal_api_v1alpha1_AggregateList(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.AggregateSpec":                schema_ironcore_dev_metal_api_v1alpha1_AggregateSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.AggregateStatus":              schema_ironcore_dev_metal_api_v1alpha1_AggregateStatus(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.AggregationResults":           schema_ironcore_dev_metal_api_v1alpha1_AggregationResults(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.BlockSpec":                    schema_ironcore_dev_metal_api_v1alpha1_BlockSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.CPUSpec":                      schema_ironcore_dev_metal_api_v1alpha1_CPUSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.ConsoleProtocol":              schema_ironcore_dev_metal_api_v1alpha1_ConsoleProtocol(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.ConstraintSpec":               schema_ironcore_dev_metal_api_v1alpha1_ConstraintSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.ConstraintValSpec":            schema_ironcore_dev_metal_api_v1alpha1_ConstraintValSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.DistroSpec":                   schema_ironcore_dev_metal_api_v1alpha1_DistroSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.HostSpec":                     schema_ironcore_dev_metal_api_v1alpha1_HostSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.IPMISpec":                     schema_ironcore_dev_metal_api_v1alpha1_IPMISpec(ref),
@@ -29,6 +37,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/ironcore-dev/metal/api/v1alpha1.InventorySpec":                schema_ironcore_dev_metal_api_v1alpha1_InventorySpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatus":              schema_ironcore_dev_metal_api_v1alpha1_InventoryStatus(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatuses":            schema_ironcore_dev_metal_api_v1alpha1_InventoryStatuses(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.JSONPath":                     schema_ironcore_dev_metal_api_v1alpha1_JSONPath(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.LLDPSpec":                     schema_ironcore_dev_metal_api_v1alpha1_LLDPSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.Machine":                      schema_ironcore_dev_metal_api_v1alpha1_Machine(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.MachineClaim":                 schema_ironcore_dev_metal_api_v1alpha1_MachineClaim(ref),
@@ -58,7 +67,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/ironcore-dev/metal/api/v1alpha1.PartitionTableSpec":           schema_ironcore_dev_metal_api_v1alpha1_PartitionTableSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.Prefix":                       schema_ironcore_dev_metal_api_v1alpha1_Prefix(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.Protocol":                     schema_ironcore_dev_metal_api_v1alpha1_Protocol(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.Size":                         schema_ironcore_dev_metal_api_v1alpha1_Size(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.SizeList":                     schema_ironcore_dev_metal_api_v1alpha1_SizeList(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.SizeSpec":                     schema_ironcore_dev_metal_api_v1alpha1_SizeSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.SizeStatus":                   schema_ironcore_dev_metal_api_v1alpha1_SizeStatus(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.SystemSpec":                   schema_ironcore_dev_metal_api_v1alpha1_SystemSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.ValidationInventory":          schema_ironcore_dev_metal_api_v1alpha1_ValidationInventory(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.VirtSpec":                     schema_ironcore_dev_metal_api_v1alpha1_VirtSpec(ref),
 		"k8s.io/api/core/v1.AWSElasticBlockStoreVolumeSource":                     schema_k8sio_api_core_v1_AWSElasticBlockStoreVolumeSource(ref),
 		"k8s.io/api/core/v1.Affinity":                                             schema_k8sio_api_core_v1_Affinity(ref),
@@ -338,6 +352,187 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/apimachinery/pkg/runtime.TypeMeta":                                schema_k8sio_apimachinery_pkg_runtime_TypeMeta(ref),
 		"k8s.io/apimachinery/pkg/runtime.Unknown":                                 schema_k8sio_apimachinery_pkg_runtime_Unknown(ref),
 		"k8s.io/apimachinery/pkg/version.Info":                                    schema_k8sio_apimachinery_pkg_version_Info(ref),
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_Aggregate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Aggregate is the Schema for the aggregates API.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.AggregateSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.AggregateStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.AggregateSpec", "github.com/ironcore-dev/metal/api/v1alpha1.AggregateStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_AggregateItem(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"sourcePath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourcePath is a path in Inventory spec aggregate will be applied to",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.JSONPath"),
+						},
+					},
+					"targetPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetPath is a path in Inventory status `computed` field",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.JSONPath"),
+						},
+					},
+					"aggregate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Aggregate defines whether collection values should be aggregated for constraint checks, in case if path defines selector for collection",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"sourcePath", "targetPath"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.JSONPath"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_AggregateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AggregateList contains a list of Aggregate.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.Aggregate"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.Aggregate", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_AggregateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AggregateSpec defines the desired state of Aggregate.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"aggregates": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Aggregates is a list of aggregates required to be computed",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.AggregateItem"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"aggregates"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.AggregateItem"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_AggregateStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AggregateStatus defines the observed state of Aggregate.",
+				Type:        []string{"object"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_AggregationResults(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+			},
+		},
 	}
 }
 
@@ -645,6 +840,81 @@ func schema_ironcore_dev_metal_api_v1alpha1_ConsoleProtocol(ref common.Reference
 					},
 				},
 				Required: []string{"name", "port"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_ConstraintSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConstraintSpec contains conditions of contraint that should be applied on resource.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path is a path to the struct field constraint will be applied to",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.JSONPath"),
+						},
+					},
+					"agg": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Aggregate defines whether collection values should be aggregated for constraint checks, in case if path defines selector for collection",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"eq": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Equal contains an exact expected value",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.ConstraintValSpec"),
+						},
+					},
+					"neq": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NotEqual contains an exact not expected value",
+							Ref:         ref("github.com/ironcore-dev/metal/api/v1alpha1.ConstraintValSpec"),
+						},
+					},
+					"lt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LessThan contains an highest expected value, exclusive",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+					"lte": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LessThan contains an highest expected value, inclusive",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+					"gt": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LessThan contains an lowest expected value, exclusive",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+					"gte": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GreaterThanOrEqual contains an lowest expected value, inclusive",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.ConstraintValSpec", "github.com/ironcore-dev/metal/api/v1alpha1.JSONPath", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_ConstraintValSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConstraintValSpec is a wrapper around value for constraint. Since it is not possilble to set oneOf/anyOf through kubebuilder markers, type is set to number here, and patched with kustomize See https://github.com/kubernetes-sigs/kubebuilder/issues/301",
+				Type:        []string{"object"},
 			},
 		},
 	}
@@ -993,6 +1263,11 @@ func schema_ironcore_dev_metal_api_v1alpha1_InventoryStatus(ref common.Reference
 				Description: "InventoryStatus defines the observed state of Inventory.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"computed": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/ironcore-dev/metal/api/v1alpha1.AggregationResults"),
+						},
+					},
 					"inventoryStatuses": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
@@ -1000,10 +1275,11 @@ func schema_ironcore_dev_metal_api_v1alpha1_InventoryStatus(ref common.Reference
 						},
 					},
 				},
+				Required: []string{"computed"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatuses"},
+			"github.com/ironcore-dev/metal/api/v1alpha1.AggregationResults", "github.com/ironcore-dev/metal/api/v1alpha1.InventoryStatuses"},
 	}
 }
 
@@ -1028,6 +1304,16 @@ func schema_ironcore_dev_metal_api_v1alpha1_InventoryStatuses(ref common.Referen
 					},
 				},
 				Required: []string{"ready"},
+			},
+		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_JSONPath(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
 			},
 		},
 	}
@@ -2375,6 +2661,142 @@ func schema_ironcore_dev_metal_api_v1alpha1_Protocol(ref common.ReferenceCallbac
 	}
 }
 
+func schema_ironcore_dev_metal_api_v1alpha1_Size(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Size is the Schema for the sizes API.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.SizeSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.SizeStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.SizeSpec", "github.com/ironcore-dev/metal/api/v1alpha1.SizeStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_SizeList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SizeList contains a list of Size.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.Size"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.Size", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_SizeSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SizeSpec defines the desired state of Size.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"constraints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Constraints is a list of selectors based on machine properties.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.ConstraintSpec"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.ConstraintSpec"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_SizeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SizeStatus defines the observed state of Size.",
+				Type:        []string{"object"},
+			},
+		},
+	}
+}
+
 func schema_ironcore_dev_metal_api_v1alpha1_SystemSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2413,6 +2835,27 @@ func schema_ironcore_dev_metal_api_v1alpha1_SystemSpec(ref common.ReferenceCallb
 				},
 			},
 		},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_ValidationInventory(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.InventorySpec"),
+						},
+					},
+				},
+				Required: []string{"spec"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.InventorySpec"},
 	}
 }
 

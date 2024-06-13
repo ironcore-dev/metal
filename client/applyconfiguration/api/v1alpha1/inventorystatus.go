@@ -5,9 +5,14 @@
 
 package v1alpha1
 
+import (
+	v1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
+)
+
 // InventoryStatusApplyConfiguration represents an declarative configuration of the InventoryStatus type for use
 // with apply.
 type InventoryStatusApplyConfiguration struct {
+	Computed          *v1alpha1.AggregationResults         `json:"computed,omitempty"`
 	InventoryStatuses *InventoryStatusesApplyConfiguration `json:"inventoryStatuses,omitempty"`
 }
 
@@ -15,6 +20,14 @@ type InventoryStatusApplyConfiguration struct {
 // apply.
 func InventoryStatus() *InventoryStatusApplyConfiguration {
 	return &InventoryStatusApplyConfiguration{}
+}
+
+// WithComputed sets the Computed field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the Computed field is set to the value of the last call.
+func (b *InventoryStatusApplyConfiguration) WithComputed(value v1alpha1.AggregationResults) *InventoryStatusApplyConfiguration {
+	b.Computed = &value
+	return b
 }
 
 // WithInventoryStatuses sets the InventoryStatuses field in the declarative configuration to the given value

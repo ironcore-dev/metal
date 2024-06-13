@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
@@ -38,18 +39,39 @@ func (r *InventoryReconciler) reconcile(ctx context.Context, inventory metalv1al
 		return err
 	}
 	idx := slices.IndexFunc(machines.Items, func(machine metalv1alpha1.Machine) bool {
-		return machine.Spec.InventoryRef == nil && machine.Spec.UUID == inventory.Name
+		return machine.Spec.UUID == inventory.Name
 	})
 	if idx == -1 {
 		return nil
 	}
+
 	machine := machines.Items[idx].DeepCopy()
 	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
-	machineSpecApply := metalv1alpha1apply.MachineSpec().
-		WithPower(metalv1alpha1.PowerOff).
-		WithInventoryRef(v1.LocalObjectReference{Name: inventory.Name})
-	machineApply = machineApply.WithSpec(machineSpecApply)
-	return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+
+	sizeLabels := make(map[string]string)
+	for k, v := range inventory.GetLabels() {
+		if !strings.HasPrefix(k, MachineSizeLabelPrefix) {
+			continue
+		}
+		sizeLabels[k] = v
+	}
+	if len(sizeLabels) != 0 {
+		machineApply = machineApply.WithLabels(sizeLabels)
+	}
+
+	if machine.Spec.InventoryRef == nil {
+		machineSpecApply := metalv1alpha1apply.MachineSpec().
+			WithPower(metalv1alpha1.PowerOff).
+			WithInventoryRef(v1.LocalObjectReference{Name: inventory.Name})
+		machineApply = machineApply.WithSpec(machineSpecApply)
+		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+	} else {
+		machineSpecApply := metalv1alpha1apply.MachineSpec().
+			WithPower(machine.Spec.Power).
+			WithInventoryRef(v1.LocalObjectReference{Name: inventory.Name})
+		machineApply = machineApply.WithSpec(machineSpecApply)
+		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+	}
 }
 
 func (r *InventoryReconciler) SetupWithManager(mgr ctrl.Manager) error {

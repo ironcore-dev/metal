@@ -16,10 +16,18 @@ import (
 func ForKind(kind schema.GroupVersionKind) interface{} {
 	switch kind {
 	// Group=metal.ironcore.dev, Version=v1alpha1
+	case v1alpha1.SchemeGroupVersion.WithKind("Aggregate"):
+		return &apiv1alpha1.AggregateApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AggregateItem"):
+		return &apiv1alpha1.AggregateItemApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("AggregateSpec"):
+		return &apiv1alpha1.AggregateSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("BlockSpec"):
 		return &apiv1alpha1.BlockSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConsoleProtocol"):
 		return &apiv1alpha1.ConsoleProtocolApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("ConstraintSpec"):
+		return &apiv1alpha1.ConstraintSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("CPUSpec"):
 		return &apiv1alpha1.CPUSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("DistroSpec"):
@@ -82,6 +90,10 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.PCIDeviceSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("Protocol"):
 		return &apiv1alpha1.ProtocolApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("Size"):
+		return &apiv1alpha1.SizeApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("SizeSpec"):
+		return &apiv1alpha1.SizeSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("SystemSpec"):
 		return &apiv1alpha1.SystemSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("VirtSpec"):

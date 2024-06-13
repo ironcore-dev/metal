@@ -390,7 +390,7 @@ type DistroSpec struct {
 // InventoryStatus defines the observed state of Inventory.
 type InventoryStatus struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
-	// Computed          AggregationResults `json:"computed"`
+	Computed AggregationResults `json:"computed"`
 
 	InventoryStatuses InventoryStatuses `json:"inventoryStatuses,omitempty"`
 }
