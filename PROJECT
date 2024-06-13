@@ -49,4 +49,12 @@ resources:
   kind: Inventory
   path: github.com/ironcore-dev/metal/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+  controller: true
+  domain: ironcore.dev
+  group: metal
+  kind: Size
+  path: github.com/ironcore-dev/metal/api/v1alpha1
+  version: v1alpha1
 version: "3"

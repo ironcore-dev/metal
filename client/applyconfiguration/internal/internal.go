@@ -26,6 +26,72 @@ func Parser() *typed.Parser {
 var parserOnce sync.Once
 var parser *typed.Parser
 var schemaYAML = typed.YAMLObject(`types:
+- name: com.github.ironcore-dev.metal.api.v1alpha1.Aggregate
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.AggregateSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.AggregateStatus
+      default: {}
+- name: com.github.ironcore-dev.metal.api.v1alpha1.AggregateItem
+  map:
+    fields:
+    - name: aggregate
+      type:
+        scalar: string
+    - name: sourcePath
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.JSONPath
+    - name: targetPath
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.JSONPath
+- name: com.github.ironcore-dev.metal.api.v1alpha1.AggregateSpec
+  map:
+    fields:
+    - name: aggregates
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.AggregateItem
+          elementRelationship: atomic
+- name: com.github.ironcore-dev.metal.api.v1alpha1.AggregateStatus
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
+- name: com.github.ironcore-dev.metal.api.v1alpha1.AggregationResults
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
 - name: com.github.ironcore-dev.metal.api.v1alpha1.BlockSpec
   map:
     fields:
@@ -152,6 +218,45 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: numeric
       default: 0
+- name: com.github.ironcore-dev.metal.api.v1alpha1.ConstraintSpec
+  map:
+    fields:
+    - name: agg
+      type:
+        scalar: string
+    - name: eq
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.ConstraintValSpec
+    - name: gt
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: gte
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: lt
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: lte
+      type:
+        namedType: io.k8s.apimachinery.pkg.api.resource.Quantity
+    - name: neq
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.ConstraintValSpec
+    - name: path
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.JSONPath
+- name: com.github.ironcore-dev.metal.api.v1alpha1.ConstraintValSpec
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
 - name: com.github.ironcore-dev.metal.api.v1alpha1.DistroSpec
   map:
     fields:
@@ -273,6 +378,9 @@ var schemaYAML = typed.YAMLObject(`types:
 - name: com.github.ironcore-dev.metal.api.v1alpha1.InventoryStatus
   map:
     fields:
+    - name: computed
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.AggregationResults
     - name: inventoryStatuses
       type:
         namedType: com.github.ironcore-dev.metal.api.v1alpha1.InventoryStatuses
@@ -287,6 +395,18 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: requestsCount
       type:
         scalar: numeric
+- name: com.github.ironcore-dev.metal.api.v1alpha1.JSONPath
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
 - name: com.github.ironcore-dev.metal.api.v1alpha1.LLDPSpec
   map:
     fields:
@@ -761,6 +881,48 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: numeric
       default: 0
+- name: com.github.ironcore-dev.metal.api.v1alpha1.Size
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.SizeSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.SizeStatus
+      default: {}
+- name: com.github.ironcore-dev.metal.api.v1alpha1.SizeSpec
+  map:
+    fields:
+    - name: constraints
+      type:
+        list:
+          elementType:
+            namedType: com.github.ironcore-dev.metal.api.v1alpha1.ConstraintSpec
+          elementRelationship: atomic
+- name: com.github.ironcore-dev.metal.api.v1alpha1.SizeStatus
+  map:
+    elementType:
+      scalar: untyped
+      list:
+        elementType:
+          namedType: __untyped_atomic_
+        elementRelationship: atomic
+      map:
+        elementType:
+          namedType: __untyped_deduced_
+        elementRelationship: separable
 - name: com.github.ironcore-dev.metal.api.v1alpha1.SystemSpec
   map:
     fields:
