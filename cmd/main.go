@@ -46,10 +46,10 @@ type params struct {
 	enableHTTP2                  bool
 	kubeconfig                   string
 	systemNamespace              string
+	enableInventoryController    bool
 	enableMachineController      bool
 	enableMachineClaimController bool
 	enableOOBController          bool
-	enableInventoryController    bool
 	oobIpLabelSelector           string
 	oobMacDB                     string
 	oobCredsRenewalBeforeExpiry  time.Duration
@@ -71,10 +71,10 @@ func parseCmdLine() params {
 	pflag.Bool("enable-http2", false, "Enable HTTP2 for the metrics and webhook servers.")
 	pflag.String("kubeconfig", "", "Use a kubeconfig to run out of cluster.")
 	pflag.String("system-namespace", "", "Use a specific namespace for controller state. If blank, use the in-cluster namespace. Required if running out of cluster.")
+	pflag.Bool("enable-inventory-controller", true, "Enable the Inventory controller")
 	pflag.Bool("enable-machine-controller", true, "Enable the Machine controller.")
 	pflag.Bool("enable-machineclaim-controller", true, "Enable the MachineClaim controller.")
 	pflag.Bool("enable-oob-controller", true, "Enable the OOB controller.")
-	pflag.Bool("enable-inventory-controller", true, "Enable the Inventory controller")
 	pflag.String("oob-ip-label-selector", "", "OOB: Filter IP objects by labels.")
 	pflag.String("oob-mac-db", "", "OOB: Load MAC DB from file.")
 	pflag.Duration("oob-creds-renewal-before-expiry", time.Hour*24*7, "OOB: Renew expiring credentials this long before they expire.")
@@ -107,10 +107,10 @@ func parseCmdLine() params {
 		enableHTTP2:                  viper.GetBool("enable-http2"),
 		kubeconfig:                   viper.GetString("kubeconfig"),
 		systemNamespace:              viper.GetString("system-namespace"),
+		enableInventoryController:    viper.GetBool("enable-inventory-controller"),
 		enableMachineController:      viper.GetBool("enable-machine-controller"),
 		enableMachineClaimController: viper.GetBool("enable-machineclaim-controller"),
 		enableOOBController:          viper.GetBool("enable-oob-controller"),
-		enableInventoryController:    viper.GetBool("enable-inventory-controller"),
 		oobIpLabelSelector:           viper.GetString("oob-ip-label-selector"),
 		oobMacDB:                     viper.GetString("oob-mac-db"),
 		oobCredsRenewalBeforeExpiry:  viper.GetDuration("oob-creds-renewal-before-expiry"),
@@ -238,6 +238,23 @@ func main() {
 		return
 	}
 
+	if p.enableInventoryController {
+		var inventoryReconciler *controller.InventoryReconciler
+		inventoryReconciler, err = controller.NewInventoryReconciler()
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
+			exitCode = 1
+			return
+		}
+
+		err = inventoryReconciler.SetupWithManager(mgr)
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
+			exitCode = 1
+			return
+		}
+	}
+
 	if p.enableMachineController {
 		var machineReconciler *controller.MachineReconciler
 		machineReconciler, err = controller.NewMachineReconciler()
@@ -284,23 +301,6 @@ func main() {
 		err = oobReconciler.SetupWithManager(mgr)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "OOB")
-			exitCode = 1
-			return
-		}
-	}
-
-	if p.enableInventoryController {
-		var inventoryReconciler *controller.InventoryReconciler
-		inventoryReconciler, err = controller.NewInventoryReconciler()
-		if err != nil {
-			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
-			exitCode = 1
-			return
-		}
-
-		err = inventoryReconciler.SetupWithManager(mgr)
-		if err != nil {
-			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
 			exitCode = 1
 			return
 		}

@@ -121,6 +121,12 @@ var _ = BeforeSuite(func() {
 	Expect(mgr).NotTo(BeNil())
 	Expect(CreateIndexes(ctx, mgr)).To(Succeed())
 
+	var inventoryReconciler *InventoryReconciler
+	inventoryReconciler, err = NewInventoryReconciler()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(inventoryReconciler).NotTo(BeNil())
+	Expect(inventoryReconciler.SetupWithManager(mgr)).To(Succeed())
+
 	var machineReconciler *MachineReconciler
 	machineReconciler, err = NewMachineReconciler()
 	Expect(err).NotTo(HaveOccurred())
@@ -138,12 +144,6 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(oobReconciler).NotTo(BeNil())
 	Expect(oobReconciler.SetupWithManager(mgr)).To(Succeed())
-
-	var inventoryReconciler *InventoryReconciler
-	inventoryReconciler, err = NewInventoryReconciler()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(inventoryReconciler).NotTo(BeNil())
-	Expect(inventoryReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	mgrCtx, mgrCancel := context.WithCancel(ctx)
 	DeferCleanup(mgrCancel)
