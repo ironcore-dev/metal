@@ -5,15 +5,14 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -21,7 +20,6 @@ import (
 
 	metalv1alpha1 "github.com/ironcore-dev/metal/api/v1alpha1"
 	metalv1alpha1apply "github.com/ironcore-dev/metal/client/applyconfiguration/api/v1alpha1"
-	"github.com/ironcore-dev/metal/internal/factory"
 	"github.com/ironcore-dev/metal/internal/log"
 	"github.com/ironcore-dev/metal/internal/ssa"
 )
@@ -34,7 +32,7 @@ import (
 
 const (
 	MachineFieldOwner      string = "metal.ironcore.dev/machine"
-	MachineFinalizer       string = "metal.ironcore.dev/machine"
+	MachineFinalizer       string = "machine.metal.ironcore.dev/finalizer"
 	MachineErrorAnnotation string = "metal.ironcore.dev/error"
 	MachineSizeLabelPrefix string = "metal.ironcore.dev/size-"
 
@@ -91,151 +89,179 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	base := machine.DeepCopy()
-	r.reconcile(ctx, &machine)
-
-	if resourceChanged(*base, machine) {
-		machineApply := convertToApplyConfiguration(*base, machine)
+	machineApply := r.reconcile(ctx, &machine)
+	if machineApply.Spec != nil {
+		machineApply.Status = nil
 		return ctrl.Result{}, r.Patch(
 			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
 	}
-	if subresourceChanged(*base, machine) {
-		machineApply := convertToApplyConfiguration(*base, machine)
+	if machineApply.Status != nil {
+		machineApply.Spec = nil
 		return ctrl.Result{}, r.Status().Patch(
 			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
 	}
 	return ctrl.Result{}, nil
 }
 
-func (r *MachineReconciler) reconcile(ctx context.Context, machine *metalv1alpha1.Machine) {
-	r.fillConditions(machine)
+func (r *MachineReconciler) reconcile(
+	ctx context.Context,
+	machine *metalv1alpha1.Machine,
+) *metalv1alpha1apply.MachineApplyConfiguration {
+	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
+	machineStatusApply := metalv1alpha1apply.MachineStatus()
+	r.fillConditions(machine, machineStatusApply)
 	if machine.Spec.Maintenance {
-		machine.Status.State = metalv1alpha1.MachineStateMaintenance
+		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateMaintenance)
 	} else {
-		r.evaluateConditions(ctx, machine)
-		r.evaluateCleanupRequired(machine)
-		r.evaluateReadiness(machine)
-		r.evaluateAvailability(machine)
+		r.evaluateConditions(ctx, machine, machineStatusApply)
+		r.evaluateCleanupRequired(machine, machineStatusApply)
+		r.evaluateReadiness(machine, machineStatusApply)
+		r.evaluateAvailability(machine, machineStatusApply)
 	}
-	r.evaluateErrorState(machine)
+	r.evaluateErrorState(machine, machineStatusApply)
+	machineApply = machineApply.WithStatus(machineStatusApply)
+	return machineApply
 }
 
-func (r *MachineReconciler) evaluateConditions(ctx context.Context, machine *metalv1alpha1.Machine) {
-	r.initialize(ctx, machine)
-	r.inventorize(ctx, machine)
-	r.classify(machine)
+func (r *MachineReconciler) evaluateConditions(
+	ctx context.Context,
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
+	r.initialize(ctx, machine, machineStatusApply)
+	r.inventorize(ctx, machine, machineStatusApply)
+	r.classify(machine, machineStatusApply)
 }
 
-func (r *MachineReconciler) evaluateCleanupRequired(machine *metalv1alpha1.Machine) {
-	r.sanitize(machine)
+func (r *MachineReconciler) evaluateCleanupRequired(
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
+	r.sanitize(machine, machineStatusApply)
 	if machine.Spec.CleanupRequired {
-		machine.Status.State = metalv1alpha1.MachineStateTainted
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateTainted)
 	}
 }
 
-func (r *MachineReconciler) initialize(ctx context.Context, machine *metalv1alpha1.Machine) {
+func (r *MachineReconciler) initialize(
+	ctx context.Context,
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
 	var oob metalv1alpha1.OOB
-	idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
-		return c.Type == MachineInitializedConditionType
+	idx := slices.IndexFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
+		return *c.Type == MachineInitializedConditionType
 	})
-	baseCondition := machine.Status.Conditions[idx]
-	conditionBuilder := factory.NewConditionBuilder(baseCondition.DeepCopy())
+	baseCondition := machineStatusApply.Conditions[idx]
+	condition := v1.Condition().
+		WithType(*baseCondition.Type).
+		WithLastTransitionTime(*baseCondition.LastTransitionTime).
+		WithObservedGeneration(*baseCondition.ObservedGeneration)
 	statusTransition := false
 
 	key := types.NamespacedName{Name: machine.Spec.OOBRef.Name}
 	err := r.Get(ctx, key, &oob)
 	switch {
 	case err != nil:
-		log.Error(ctx, err, "failed to get oob object")
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ConditionReason(MachineInitializedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(fmt.Sprintf("Cannot get OOB object: %v", err)))
-		statusTransition = baseCondition.Status == metav1.ConditionTrue
+		log.Error(ctx, fmt.Errorf("failed to get oob: %w", err))
+		condition = condition.
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineInitializedConditionNegReason).
+			WithMessage(fmt.Sprintf("Cannot get OOB object: %v", err))
+		statusTransition = *baseCondition.Status == metav1.ConditionTrue
 	case oob.Status.Manufacturer != "" && oob.Status.SerialNumber != "":
-		machine.Status.Manufacturer = oob.Status.Manufacturer
-		machine.Status.SerialNumber = oob.Status.SerialNumber
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
-			AddProperty(factory.ConditionReason(MachineInitializedConditionPosReason)).
-			AddProperty(factory.ConditionMessage(MachineInitializedConditionPosMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionFalse
+		condition = condition.
+			WithStatus(metav1.ConditionTrue).
+			WithReason(MachineInitializedConditionPosReason).
+			WithMessage(MachineInitializedConditionPosMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionFalse
 	default:
-		machine.Status.Manufacturer = ""
-		machine.Status.SerialNumber = ""
-		machine.Status.SKU = ""
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ConditionReason(MachineInitializedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineInitializedConditionNegMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionTrue
+		condition = condition.
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineInitializedConditionNegReason).
+			WithMessage(MachineInitializedConditionNegMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionTrue
 	}
 	if statusTransition {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ObservedGeneration(machine.Generation))
+		condition = condition.
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
 	}
-	machine.Status.Conditions[idx] = *conditionBuilder.Build()
-	machine.Status.State = metalv1alpha1.MachineStateInitial
+	machineStatusApply.Conditions[idx] = *condition
+	machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateInitial)
 }
 
-func (r *MachineReconciler) inventorize(ctx context.Context, machine *metalv1alpha1.Machine) {
+func (r *MachineReconciler) inventorize(
+	ctx context.Context,
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
 	var inventory metalv1alpha1.Inventory
-	idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
-		return c.Type == MachineInventoriedConditionType
+	idx := slices.IndexFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
+		return *c.Type == MachineInventoriedConditionType
 	})
-	baseCondition := machine.Status.Conditions[idx]
-	conditionBuilder := factory.NewConditionBuilder(baseCondition.DeepCopy())
+	baseCondition := machineStatusApply.Conditions[idx]
+	condition := v1.Condition().
+		WithType(*baseCondition.Type).
+		WithLastTransitionTime(*baseCondition.LastTransitionTime).
+		WithObservedGeneration(*baseCondition.ObservedGeneration)
 	statusTransition := false
 
 	if machine.Spec.InventoryRef == nil {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ConditionReason(MachineInventoriedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineInventoriedConditionNegMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionTrue
+		condition = condition.
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineInventoriedConditionNegReason).
+			WithMessage(MachineInventoriedConditionNegMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionTrue
 	} else {
 		key := types.NamespacedName{Name: machine.Spec.InventoryRef.Name}
 		err := r.Get(ctx, key, &inventory)
 		switch {
 		case err != nil:
-			log.Error(ctx, err, "failed to get inventory object")
-			conditionBuilder = conditionBuilder.
-				AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-				AddProperty(factory.ConditionReason(MachineInventoriedConditionNegReason)).
-				AddProperty(factory.ConditionMessage(fmt.Sprintf("Cannot get Inventory object: %v", err)))
-			statusTransition = baseCondition.Status == metav1.ConditionTrue
+			log.Error(ctx, fmt.Errorf("failed to get inventory: %w", err))
+			condition = condition.
+				WithStatus(metav1.ConditionFalse).
+				WithReason(MachineInventoriedConditionNegReason).
+				WithMessage(fmt.Sprintf("Cannot get Inventory object: %v", err))
+			statusTransition = *baseCondition.Status == metav1.ConditionTrue
 		default:
-			networkInterfaces := make([]metalv1alpha1.MachineNetworkInterface, 0, len(inventory.Spec.NICs))
+			networkInterfacesToApply := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0)
 			for _, nic := range inventory.Spec.NICs {
-				networkInterfaces = append(networkInterfaces, metalv1alpha1.MachineNetworkInterface{
-					Name:       nic.Name,
-					MacAddress: convertMacAddress(nic.MACAddress),
-				})
+				nicApply := metalv1alpha1apply.MachineNetworkInterface().
+					WithName(nic.Name).
+					WithMacAddress(convertMacAddress(nic.MACAddress))
+				networkInterfacesToApply = append(networkInterfacesToApply, nicApply)
 			}
-			machine.Status.NetworkInterfaces = networkInterfaces
-			conditionBuilder = conditionBuilder.
-				AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
-				AddProperty(factory.ConditionReason(MachineInventoriedConditionPosReason)).
-				AddProperty(factory.ConditionMessage(MachineInventoriedConditionPosMessage))
-			statusTransition = baseCondition.Status == metav1.ConditionFalse
+			machineStatusApply = machineStatusApply.WithNetworkInterfaces(networkInterfacesToApply...)
+
+			condition = condition.
+				WithStatus(metav1.ConditionTrue).
+				WithReason(MachineInventoriedConditionPosReason).
+				WithMessage(MachineInventoriedConditionPosMessage)
+			statusTransition = *baseCondition.Status == metav1.ConditionFalse
 		}
 	}
 	if statusTransition {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ObservedGeneration(machine.Generation))
+		condition = condition.
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
 	}
-	machine.Status.Conditions[idx] = *conditionBuilder.Build()
+	machineStatusApply.Conditions[idx] = *condition
 }
 
-func (r *MachineReconciler) classify(machine *metalv1alpha1.Machine) {
+func (r *MachineReconciler) classify(
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
 	// note: size label should be set by size controller
-	idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
-		return c.Type == MachineClassifiedConditionType
+	idx := slices.IndexFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
+		return *c.Type == MachineClassifiedConditionType
 	})
-	baseCondition := machine.Status.Conditions[idx]
-	conditionBuilder := factory.NewConditionBuilder(baseCondition.DeepCopy())
+	baseCondition := machineStatusApply.Conditions[idx]
+	condition := v1.Condition().
+		WithType(*baseCondition.Type).
+		WithLastTransitionTime(*baseCondition.LastTransitionTime).
+		WithObservedGeneration(*baseCondition.ObservedGeneration)
 	statusTransition := false
 	notClassified := true
 
@@ -243,64 +269,76 @@ func (r *MachineReconciler) classify(machine *metalv1alpha1.Machine) {
 		if !strings.HasPrefix(lbl, MachineSizeLabelPrefix) {
 			continue
 		}
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
-			AddProperty(factory.ConditionReason(MachineClassifiedConditionPosReason)).
-			AddProperty(factory.ConditionMessage(MachineClassifiedConditionPosMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionFalse
+		condition = condition.
+			WithStatus(metav1.ConditionTrue).
+			WithReason(MachineClassifiedConditionPosReason).
+			WithMessage(MachineClassifiedConditionPosMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionFalse
 		notClassified = false
 		break
 	}
 	if notClassified {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ConditionReason(MachineClassifiedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineClassifiedConditionNegMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionTrue
+		condition = condition.
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineClassifiedConditionNegReason).
+			WithMessage(MachineClassifiedConditionNegMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionTrue
 	}
 	if statusTransition {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ObservedGeneration(machine.Generation))
+		condition = condition.
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
 	}
-	machine.Status.Conditions[idx] = *conditionBuilder.Build()
+	machineStatusApply.Conditions[idx] = *condition
 }
 
-func (r *MachineReconciler) sanitize(machine *metalv1alpha1.Machine) {
-	idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
-		return c.Type == MachineSanitizedConditionType
+func (r *MachineReconciler) sanitize(
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
+	idx := slices.IndexFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
+		return *c.Type == MachineSanitizedConditionType
 	})
-	baseCondition := machine.Status.Conditions[idx]
-	conditionBuilder := factory.NewConditionBuilder(baseCondition.DeepCopy())
+	baseCondition := machineStatusApply.Conditions[idx]
+	condition := v1.Condition().
+		WithType(*baseCondition.Type).
+		WithLastTransitionTime(*baseCondition.LastTransitionTime).
+		WithObservedGeneration(*baseCondition.ObservedGeneration)
 	statusTransition := false
 
 	if machine.Spec.CleanupRequired {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ConditionReason(MachineSanitizedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineSanitizedConditionNegMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionTrue
+		condition = condition.
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineSanitizedConditionNegReason).
+			WithMessage(MachineSanitizedConditionNegMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionTrue
 	} else {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
-			AddProperty(factory.ConditionReason(MachineSanitizedConditionPosReason)).
-			AddProperty(factory.ConditionMessage(MachineSanitizedConditionPosMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionFalse
+		condition = condition.
+			WithStatus(metav1.ConditionTrue).
+			WithReason(MachineSanitizedConditionPosReason).
+			WithMessage(MachineSanitizedConditionPosMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionFalse
 	}
 	if statusTransition {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ObservedGeneration(machine.Generation))
+		condition = condition.
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
 	}
-	machine.Status.Conditions[idx] = *conditionBuilder.Build()
+	machineStatusApply.Conditions[idx] = *condition
 }
 
-func (r *MachineReconciler) evaluateReadiness(machine *metalv1alpha1.Machine) {
-	idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
-		return c.Type == MachineReadyConditionType
+func (r *MachineReconciler) evaluateReadiness(
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
+	idx := slices.IndexFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
+		return *c.Type == MachineReadyConditionType
 	})
-	baseCondition := machine.Status.Conditions[idx]
-	conditionBuilder := factory.NewConditionBuilder(baseCondition.DeepCopy())
+	baseCondition := machineStatusApply.Conditions[idx]
+	condition := v1.Condition().
+		WithType(*baseCondition.Type).
+		WithLastTransitionTime(*baseCondition.LastTransitionTime).
+		WithObservedGeneration(*baseCondition.ObservedGeneration)
 	statusTransition := false
 
 	initialized := slices.ContainsFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
@@ -317,110 +355,168 @@ func (r *MachineReconciler) evaluateReadiness(machine *metalv1alpha1.Machine) {
 	})
 
 	if initialized && inventoried && classified && sanitized {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionTrue)).
-			AddProperty(factory.ConditionReason(MachineReadyConditionPosReason)).
-			AddProperty(factory.ConditionMessage(MachineReadyConditionPosMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionFalse
+		condition = condition.
+			WithStatus(metav1.ConditionTrue).
+			WithReason(MachineReadyConditionPosReason).
+			WithMessage(MachineReadyConditionPosMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionFalse
 	} else {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ConditionReason(MachineReadyConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineReadyConditionNegMessage))
-		statusTransition = baseCondition.Status == metav1.ConditionTrue
+		condition = condition.
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineReadyConditionNegReason).
+			WithMessage(MachineReadyConditionNegMessage)
+		statusTransition = *baseCondition.Status == metav1.ConditionTrue
 	}
 	if statusTransition {
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ObservedGeneration(machine.Generation))
+		condition = condition.
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
 	}
-	machine.Status.Conditions[idx] = *conditionBuilder.Build()
+	machineStatusApply.Conditions[idx] = *condition
 }
 
-func (r *MachineReconciler) evaluateAvailability(machine *metalv1alpha1.Machine) {
-	idx := slices.IndexFunc(machine.Status.Conditions, func(c metav1.Condition) bool {
-		return c.Type == MachineReadyConditionType
+func (r *MachineReconciler) evaluateAvailability(
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
+	idx := slices.IndexFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
+		return *c.Type == MachineReadyConditionType
 	})
-	if machine.Status.Conditions[idx].Status == metav1.ConditionFalse {
+	if *machineStatusApply.Conditions[idx].Status == metav1.ConditionFalse {
 		return
 	}
 
 	if machine.Spec.MachineClaimRef != nil && machine.Spec.MachineClaimRef.Name != "" {
-		machine.Status.State = metalv1alpha1.MachineStateReserved
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateReserved)
 	} else {
-		machine.Status.State = metalv1alpha1.MachineStateAvailable
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateAvailable)
 	}
 }
 
-func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine) {
+// nolint: staticcheck
+func (r *MachineReconciler) fillConditions(machine *metalv1alpha1.Machine, machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration) {
+	conditionsToApply := make([]v1.ConditionApplyConfiguration, 0)
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
 		return condition.Type == MachineInitializedConditionType
 	}); idx < 0 {
-		conditionBuilder := factory.NewConditionBuilder(&metav1.Condition{})
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionType(MachineInitializedConditionType)).
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ObservedGeneration(machine.Generation)).
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ConditionReason(MachineInitializedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineInitializedConditionNegMessage))
-		machine.Status.Conditions = append(machine.Status.Conditions, *conditionBuilder.Build())
+		condition := v1.Condition().
+			WithType(MachineInitializedConditionType).
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineInitializedConditionNegReason).
+			WithMessage(MachineInitializedConditionNegMessage).
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
+		conditionsToApply = append(conditionsToApply, *condition)
+	} else {
+		c := machine.Status.Conditions[idx]
+		condition := v1.Condition().
+			WithType(c.Type).
+			WithStatus(c.Status).
+			WithReason(c.Reason).
+			WithMessage(c.Message).
+			WithLastTransitionTime(c.LastTransitionTime).
+			WithObservedGeneration(c.ObservedGeneration)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
+
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
 		return condition.Type == MachineInventoriedConditionType
 	}); idx < 0 {
-		conditionBuilder := factory.NewConditionBuilder(&metav1.Condition{})
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionType(MachineInventoriedConditionType)).
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ObservedGeneration(machine.Generation)).
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ConditionReason(MachineInventoriedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineInventoriedConditionNegMessage))
-		machine.Status.Conditions = append(machine.Status.Conditions, *conditionBuilder.Build())
+		condition := v1.Condition().
+			WithType(MachineInventoriedConditionType).
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineInventoriedConditionNegReason).
+			WithMessage(MachineInventoriedConditionNegMessage).
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
+		conditionsToApply = append(conditionsToApply, *condition)
+	} else {
+		c := machine.Status.Conditions[idx]
+		condition := v1.Condition().
+			WithType(c.Type).
+			WithStatus(c.Status).
+			WithReason(c.Reason).
+			WithMessage(c.Message).
+			WithLastTransitionTime(c.LastTransitionTime).
+			WithObservedGeneration(c.ObservedGeneration)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
+
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
 		return condition.Type == MachineClassifiedConditionType
 	}); idx < 0 {
-		conditionBuilder := factory.NewConditionBuilder(&metav1.Condition{})
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionType(MachineClassifiedConditionType)).
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ObservedGeneration(machine.Generation)).
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ConditionReason(MachineClassifiedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineClassifiedConditionNegMessage))
-		machine.Status.Conditions = append(machine.Status.Conditions, *conditionBuilder.Build())
+		condition := v1.Condition().
+			WithType(MachineClassifiedConditionType).
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineClassifiedConditionNegReason).
+			WithMessage(MachineClassifiedConditionNegMessage).
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
+		conditionsToApply = append(conditionsToApply, *condition)
+	} else {
+		c := machine.Status.Conditions[idx]
+		condition := v1.Condition().
+			WithType(c.Type).
+			WithStatus(c.Status).
+			WithReason(c.Reason).
+			WithMessage(c.Message).
+			WithLastTransitionTime(c.LastTransitionTime).
+			WithObservedGeneration(c.ObservedGeneration)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
+
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
 		return condition.Type == MachineSanitizedConditionType
 	}); idx < 0 {
-		conditionBuilder := factory.NewConditionBuilder(&metav1.Condition{})
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionType(MachineSanitizedConditionType)).
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ObservedGeneration(machine.Generation)).
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ConditionReason(MachineSanitizedConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineSanitizedConditionNegMessage))
-		machine.Status.Conditions = append(machine.Status.Conditions, *conditionBuilder.Build())
+		condition := v1.Condition().
+			WithType(MachineSanitizedConditionType).
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineSanitizedConditionNegReason).
+			WithMessage(MachineSanitizedConditionNegMessage).
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
+		conditionsToApply = append(conditionsToApply, *condition)
+	} else {
+		c := machine.Status.Conditions[idx]
+		condition := v1.Condition().
+			WithType(c.Type).
+			WithStatus(c.Status).
+			WithReason(c.Reason).
+			WithMessage(c.Message).
+			WithLastTransitionTime(c.LastTransitionTime).
+			WithObservedGeneration(c.ObservedGeneration)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
+
 	if idx := slices.IndexFunc(machine.Status.Conditions, func(condition metav1.Condition) bool {
 		return condition.Type == MachineReadyConditionType
 	}); idx < 0 {
-		conditionBuilder := factory.NewConditionBuilder(&metav1.Condition{})
-		conditionBuilder = conditionBuilder.
-			AddProperty(factory.ConditionType(MachineReadyConditionType)).
-			AddProperty(factory.ConditionStatus(metav1.ConditionFalse)).
-			AddProperty(factory.ObservedGeneration(machine.Generation)).
-			AddProperty(factory.LastTransitionTime(metav1.Now())).
-			AddProperty(factory.ConditionReason(MachineReadyConditionNegReason)).
-			AddProperty(factory.ConditionMessage(MachineReadyConditionNegMessage))
-		machine.Status.Conditions = append(machine.Status.Conditions, *conditionBuilder.Build())
+		condition := v1.Condition().
+			WithType(MachineReadyConditionType).
+			WithStatus(metav1.ConditionFalse).
+			WithReason(MachineReadyConditionNegReason).
+			WithMessage(MachineReadyConditionNegMessage).
+			WithLastTransitionTime(metav1.Now()).
+			WithObservedGeneration(machine.Generation)
+		conditionsToApply = append(conditionsToApply, *condition)
+	} else {
+		c := machine.Status.Conditions[idx]
+		condition := v1.Condition().
+			WithType(c.Type).
+			WithStatus(c.Status).
+			WithReason(c.Reason).
+			WithMessage(c.Message).
+			WithLastTransitionTime(c.LastTransitionTime).
+			WithObservedGeneration(c.ObservedGeneration)
+		conditionsToApply = append(conditionsToApply, *condition)
 	}
+	machineStatusApply.Conditions = conditionsToApply
 }
 
-func (r *MachineReconciler) evaluateErrorState(machine *metalv1alpha1.Machine) {
+func (r *MachineReconciler) evaluateErrorState(
+	machine *metalv1alpha1.Machine,
+	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
+) {
 	// todo: error flag might be changed. For now it will be annotation
 	_, ok := machine.Annotations[MachineErrorAnnotation]
 	if !ok {
@@ -430,7 +526,7 @@ func (r *MachineReconciler) evaluateErrorState(machine *metalv1alpha1.Machine) {
 	//  If reserved machine will get into error state, then machine claim controller will cleanup spec.machineClaimRef.
 	//  Therefore, machine controller will not set Reserved state back, after error is resolved.
 	if machine.Spec.MachineClaimRef == nil || machine.Spec.MachineClaimRef.Name == "" {
-		machine.Status.State = metalv1alpha1.MachineStateError
+		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateError)
 	}
 }
 
@@ -465,59 +561,50 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func convertToApplyConfiguration(base, machine metalv1alpha1.Machine) *metalv1alpha1apply.MachineApplyConfiguration {
-	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
-	specApply := metalv1alpha1apply.MachineSpec()
-	if base.Spec.Power != machine.Spec.Power && machine.Spec.Power != "" {
-		specApply = specApply.WithPower(machine.Spec.Power)
-	}
-
-	statusApply := metalv1alpha1apply.MachineStatus()
-	if networkInterfacesChanged(base.Status.NetworkInterfaces, machine.Status.NetworkInterfaces) {
-		nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0, len(machine.Status.NetworkInterfaces))
-		for _, nic := range machine.Status.NetworkInterfaces {
-			nicApply := metalv1alpha1apply.MachineNetworkInterface().
-				WithName(nic.Name).
-				WithMacAddress(nic.MacAddress)
-			if nic.IPRef != nil {
-				nicApply = nicApply.WithIPRef(*nic.IPRef)
-			}
-			if nic.SwitchRef != nil {
-				nicApply = nicApply.WithSwitchRef(*nic.SwitchRef)
-			}
-			nicApplyList = append(nicApplyList, nicApply)
-		}
-		statusApply = statusApply.WithNetworkInterfaces(nicApplyList...)
-	}
-	if conditionsChanged(base.Status.Conditions, machine.Status.Conditions) {
-		conditionsApply := make([]*v1.ConditionApplyConfiguration, 0, len(machine.Status.Conditions))
-		for _, c := range machine.Status.Conditions {
-			conditionApply := v1.Condition().
-				WithType(c.Type).
-				WithStatus(c.Status).
-				WithReason(c.Reason).
-				WithMessage(c.Message).
-				WithLastTransitionTime(c.LastTransitionTime).
-				WithObservedGeneration(c.ObservedGeneration)
-			conditionsApply = append(conditionsApply, conditionApply)
-		}
-		statusApply = statusApply.WithConditions(conditionsApply...)
-	}
-	if base.Status.SKU != machine.Status.SKU {
-		statusApply = statusApply.WithSKU(machine.Status.SKU)
-	}
-	if base.Status.SerialNumber != machine.Status.SerialNumber {
-		statusApply = statusApply.WithSerialNumber(machine.Status.SerialNumber)
-	}
-	if base.Status.Manufacturer != machine.Status.Manufacturer {
-		statusApply = statusApply.WithManufacturer(machine.Status.Manufacturer)
-	}
-	if base.Status.State != machine.Status.State {
-		statusApply = statusApply.WithState(machine.Status.State)
-	}
-
-	return machineApply.WithSpec(specApply).WithStatus(statusApply)
-}
+// func convertToApplyConfiguration(base, machine metalv1alpha1.Machine) *metalv1alpha1apply.MachineApplyConfiguration {
+// 	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
+// 	specApply := metalv1alpha1apply.MachineSpec()
+// 	if base.Spec.Power != machine.Spec.Power && machine.Spec.Power != "" {
+// 		specApply = specApply.WithPower(machine.Spec.Power)
+// 	}
+//
+// 	statusApply := metalv1alpha1apply.MachineStatus()
+// 	if networkInterfacesChanged(base.Status.NetworkInterfaces, machine.Status.NetworkInterfaces) {
+// 		nicApplyList := make([]*metalv1alpha1apply.MachineNetworkInterfaceApplyConfiguration, 0, len(machine.Status.NetworkInterfaces))
+// 		for _, nic := range machine.Status.NetworkInterfaces {
+// 			nicApply := metalv1alpha1apply.MachineNetworkInterface().
+// 				WithName(nic.Name).
+// 				WithMacAddress(nic.MacAddress)
+// 			if nic.IPRef != nil {
+// 				nicApply = nicApply.WithIPRef(*nic.IPRef)
+// 			}
+// 			if nic.SwitchRef != nil {
+// 				nicApply = nicApply.WithSwitchRef(*nic.SwitchRef)
+// 			}
+// 			nicApplyList = append(nicApplyList, nicApply)
+// 		}
+// 		statusApply = statusApply.WithNetworkInterfaces(nicApplyList...)
+// 	}
+// 	if conditionsChanged(base.Status.Conditions, machine.Status.Conditions) {
+// 		conditionsApply := make([]*v1.ConditionApplyConfiguration, 0, len(machine.Status.Conditions))
+// 		for _, c := range machine.Status.Conditions {
+// 			conditionApply := v1.Condition().
+// 				WithType(c.Type).
+// 				WithStatus(c.Status).
+// 				WithReason(c.Reason).
+// 				WithMessage(c.Message).
+// 				WithLastTransitionTime(c.LastTransitionTime).
+// 				WithObservedGeneration(c.ObservedGeneration)
+// 			conditionsApply = append(conditionsApply, conditionApply)
+// 		}
+// 		statusApply = statusApply.WithConditions(conditionsApply...)
+// 	}
+// 	if base.Status.State != machine.Status.State {
+// 		statusApply = statusApply.WithState(machine.Status.State)
+// 	}
+//
+// 	return machineApply.WithSpec(specApply).WithStatus(statusApply)
+// }
 
 func convertMacAddress(src string) string {
 	var mac = src
@@ -526,43 +613,43 @@ func convertMacAddress(src string) string {
 	return mac
 }
 
-func resourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
-	return metadataChanged(objOld, objNew) || specChanged(objOld, objNew)
-}
+// func resourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
+// 	return metadataChanged(objOld, objNew) || specChanged(objOld, objNew)
+// }
 
-func metadataChanged(objOld, objNew metalv1alpha1.Machine) bool {
-	labelsChanged := !reflect.DeepEqual(objOld.GetLabels(), objNew.GetLabels())
-	annotationsChanged := !reflect.DeepEqual(objOld.GetAnnotations(), objNew.GetAnnotations())
-	finalizersChanged := !reflect.DeepEqual(objOld.GetFinalizers(), objNew.GetFinalizers())
-	return labelsChanged || annotationsChanged || finalizersChanged
-}
+// func metadataChanged(objOld, objNew metalv1alpha1.Machine) bool {
+// 	labelsChanged := !reflect.DeepEqual(objOld.GetLabels(), objNew.GetLabels())
+// 	annotationsChanged := !reflect.DeepEqual(objOld.GetAnnotations(), objNew.GetAnnotations())
+// 	finalizersChanged := !reflect.DeepEqual(objOld.GetFinalizers(), objNew.GetFinalizers())
+// 	return labelsChanged || annotationsChanged || finalizersChanged
+// }
 
-func specChanged(objOld, objNew metalv1alpha1.Machine) bool {
-	oldSpec, _ := json.Marshal(objOld.Spec)
-	newSpec, _ := json.Marshal(objNew.Spec)
-	return !reflect.DeepEqual(oldSpec, newSpec)
-}
+// func specChanged(objOld, objNew metalv1alpha1.Machine) bool {
+// 	oldSpec, _ := json.Marshal(objOld.Spec)
+// 	newSpec, _ := json.Marshal(objNew.Spec)
+// 	return !reflect.DeepEqual(oldSpec, newSpec)
+// }
 
-func subresourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
-	oldStatus, _ := json.Marshal(objOld.Status)
-	newStatus, _ := json.Marshal(objNew.Status)
-	return !reflect.DeepEqual(oldStatus, newStatus)
-}
+// func subresourceChanged(objOld, objNew metalv1alpha1.Machine) bool {
+// 	oldStatus, _ := json.Marshal(objOld.Status)
+// 	newStatus, _ := json.Marshal(objNew.Status)
+// 	return !reflect.DeepEqual(oldStatus, newStatus)
+// }
 
-func conditionsChanged(oldData, newData []metav1.Condition) bool {
-	if len(oldData) != len(newData) {
-		return true
-	}
-	oldConditions, _ := json.Marshal(oldData)
-	newConditions, _ := json.Marshal(newData)
-	return !reflect.DeepEqual(oldConditions, newConditions)
-}
+// func conditionsChanged(oldData, newData []metav1.Condition) bool {
+// 	if len(oldData) != len(newData) {
+// 		return true
+// 	}
+// 	oldConditions, _ := json.Marshal(oldData)
+// 	newConditions, _ := json.Marshal(newData)
+// 	return !reflect.DeepEqual(oldConditions, newConditions)
+// }
 
-func networkInterfacesChanged(oldData, newData []metalv1alpha1.MachineNetworkInterface) bool {
-	if len(oldData) != len(newData) {
-		return true
-	}
-	oldNetworkInterfaces, _ := json.Marshal(oldData)
-	newNetworkInterfaces, _ := json.Marshal(newData)
-	return !reflect.DeepEqual(oldNetworkInterfaces, newNetworkInterfaces)
-}
+// func networkInterfacesChanged(oldData, newData []metalv1alpha1.MachineNetworkInterface) bool {
+// 	if len(oldData) != len(newData) {
+// 		return true
+// 	}
+// 	oldNetworkInterfaces, _ := json.Marshal(oldData)
+// 	newNetworkInterfaces, _ := json.Marshal(newData)
+// 	return !reflect.DeepEqual(oldNetworkInterfaces, newNetworkInterfaces)
+// }
