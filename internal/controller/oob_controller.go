@@ -1165,29 +1165,30 @@ func (r *OOBReconciler) runCtrlPhase(ctx context.Context, machine *metalv1alpha1
 	return advance && machineApply == nil, requeueAfter, nil
 }
 
-func (r *OOBReconciler) setMachineCondition(ctx context.Context, machine *metalv1alpha1.Machine, machineApply *metalv1alpha1apply.MachineApplyConfiguration, machineStatus *metalv1alpha1apply.MachineStatusApplyConfiguration, advance bool, requeueAfter time.Duration, cond metav1.Condition) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
-	conds, mod := ssa.SetCondition(machine.Status.Conditions, cond)
-	if mod {
-		if machineStatus == nil {
-			applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
-			if err != nil {
-				return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
-			}
-			machineStatus = util.Ensure(applyst.Status)
-		}
-
-		log.Debug(ctx, "Setting Machine condition", "type", cond.Type, "status", cond.Status, "reason", cond.Reason)
-		machineStatus.Conditions = nil
-		for _, c := range conds {
-			ca := metav1apply.Condition().
-				WithType(c.Type).
-				WithStatus(c.Status).
-				WithLastTransitionTime(c.LastTransitionTime).
-				WithReason(c.Reason).
-				WithMessage(c.Message)
-			machineStatus = machineStatus.WithConditions(ca)
-		}
-	}
+func (r *OOBReconciler) setMachineCondition(ctx context.Context, _ *metalv1alpha1.Machine, machineApply *metalv1alpha1apply.MachineApplyConfiguration, machineStatus *metalv1alpha1apply.MachineStatusApplyConfiguration, advance bool, requeueAfter time.Duration, _ metav1.Condition) (context.Context, *metalv1alpha1apply.MachineApplyConfiguration, *metalv1alpha1apply.MachineStatusApplyConfiguration, bool, time.Duration, error) {
+	// TODO: Investigate condition ownership semantics before reenabling this code.
+	//conds, mod := ssa.SetCondition(machine.Status.Conditions, cond)
+	//if mod {
+	//	if machineStatus == nil {
+	//		applyst, err := metalv1alpha1apply.ExtractMachineStatus(machine, OOBFieldManager)
+	//		if err != nil {
+	//			return ctx, nil, nil, false, 0, fmt.Errorf("cannot extract Machine status: %w", err)
+	//		}
+	//		machineStatus = util.Ensure(applyst.Status)
+	//	}
+	//
+	//	log.Debug(ctx, "Setting Machine condition", "type", cond.Type, "status", cond.Status, "reason", cond.Reason)
+	//	machineStatus.Conditions = nil
+	//	for _, c := range conds {
+	//		ca := metav1apply.Condition().
+	//			WithType(c.Type).
+	//			WithStatus(c.Status).
+	//			WithLastTransitionTime(c.LastTransitionTime).
+	//			WithReason(c.Reason).
+	//			WithMessage(c.Message)
+	//		machineStatus = machineStatus.WithConditions(ca)
+	//	}
+	//}
 	return ctx, machineApply, machineStatus, advance, requeueAfter, nil
 }
 
