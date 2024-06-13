@@ -34,7 +34,7 @@ import (
 	"github.com/ironcore-dev/metal/internal/controller"
 	"github.com/ironcore-dev/metal/internal/log"
 	"github.com/ironcore-dev/metal/internal/namespace"
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 )
 
 type params struct {
@@ -49,6 +49,7 @@ type params struct {
 	enableMachineController      bool
 	enableMachineClaimController bool
 	enableOOBController          bool
+	enableInventoryController    bool
 	oobIpLabelSelector           string
 	oobMacDB                     string
 	oobCredsRenewalBeforeExpiry  time.Duration
@@ -73,6 +74,7 @@ func parseCmdLine() params {
 	pflag.Bool("enable-machine-controller", true, "Enable the Machine controller.")
 	pflag.Bool("enable-machineclaim-controller", true, "Enable the MachineClaim controller.")
 	pflag.Bool("enable-oob-controller", true, "Enable the OOB controller.")
+	pflag.Bool("enable-inventory-controller", true, "Enable the Inventory controller")
 	pflag.String("oob-ip-label-selector", "", "OOB: Filter IP objects by labels.")
 	pflag.String("oob-mac-db", "", "OOB: Load MAC DB from file.")
 	pflag.Duration("oob-creds-renewal-before-expiry", time.Hour*24*7, "OOB: Renew expiring credentials this long before they expire.")
@@ -171,7 +173,7 @@ func main() {
 		exitCode = 1
 		return
 	}
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 
 	var kcfg *rest.Config
 	kcfg, err = ctrl.GetConfig()
@@ -286,7 +288,24 @@ func main() {
 		}
 	}
 
-	//+kubebuilder:scaffold:builder
+	if p.enableInventoryController {
+		var inventoryReconciler *controller.InventoryReconciler
+		inventoryReconciler, err = controller.NewInventoryReconciler()
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
+			exitCode = 1
+			return
+		}
+
+		err = inventoryReconciler.SetupWithManager(mgr)
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
+			exitCode = 1
+			return
+		}
+	}
+
+	// +kubebuilder:scaffold:builder
 
 	err = mgr.AddHealthzCheck("health", healthz.Ping)
 	if err != nil {

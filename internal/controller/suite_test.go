@@ -139,6 +139,12 @@ var _ = BeforeSuite(func() {
 	Expect(oobReconciler).NotTo(BeNil())
 	Expect(oobReconciler.SetupWithManager(mgr)).To(Succeed())
 
+	var inventoryReconciler *InventoryReconciler
+	inventoryReconciler, err = NewInventoryReconciler()
+	Expect(err).NotTo(HaveOccurred())
+	Expect(inventoryReconciler).NotTo(BeNil())
+	Expect(inventoryReconciler.SetupWithManager(mgr)).To(Succeed())
+
 	mgrCtx, mgrCancel := context.WithCancel(ctx)
 	DeferCleanup(mgrCancel)
 
