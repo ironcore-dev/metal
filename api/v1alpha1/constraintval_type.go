@@ -33,7 +33,7 @@ func (in *ConstraintValSpec) MarshalJSON() ([]byte, error) {
 }
 
 func (in *ConstraintValSpec) UnmarshalJSON(data []byte) error {
-	if len(data) == 0 || string(data) == "null" {
+	if len(data) == 0 || string(data) == null {
 		in.Literal = nil
 		in.Numeric = nil
 		return nil

@@ -21,7 +21,7 @@ func (in *JSONPath) MarshalJSON() ([]byte, error) {
 // nolint:forcetypeassert
 func (in *JSONPath) UnmarshalJSON(b []byte) error {
 	stringVal := string(b)
-	if stringVal == "null" {
+	if stringVal == null {
 		return nil
 	}
 	if err := json.Unmarshal(b, &stringVal); err != nil {

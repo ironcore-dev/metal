@@ -19,7 +19,7 @@ func (in *AggregationResults) MarshalJSON() ([]byte, error) {
 
 func (in *AggregationResults) UnmarshalJSON(b []byte) error {
 	stringVal := string(b)
-	if stringVal == "null" {
+	if stringVal == null {
 		in.Object = nil
 		return nil
 	}
