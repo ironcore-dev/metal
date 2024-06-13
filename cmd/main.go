@@ -110,6 +110,7 @@ func parseCmdLine() params {
 		enableMachineController:      viper.GetBool("enable-machine-controller"),
 		enableMachineClaimController: viper.GetBool("enable-machineclaim-controller"),
 		enableOOBController:          viper.GetBool("enable-oob-controller"),
+		enableInventoryController:    viper.GetBool("enable-inventory-controller"),
 		oobIpLabelSelector:           viper.GetString("oob-ip-label-selector"),
 		oobMacDB:                     viper.GetString("oob-mac-db"),
 		oobCredsRenewalBeforeExpiry:  viper.GetDuration("oob-creds-renewal-before-expiry"),
