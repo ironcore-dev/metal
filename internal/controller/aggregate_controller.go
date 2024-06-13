@@ -41,7 +41,7 @@ func (r *AggregateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if !controllerutil.ContainsFinalizer(&aggregate, AggregateFinalizer) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, r.finalize(ctx, &aggregate)
+		return ctrl.Result{}, r.finalize(ctx, aggregate)
 	}
 
 	return ctrl.Result{}, r.reconcile(ctx, &aggregate)
@@ -89,7 +89,7 @@ func (r *AggregateReconciler) reconcile(ctx context.Context, aggregate *metalv1a
 	return nil
 }
 
-func (r *AggregateReconciler) finalize(ctx context.Context, aggregate *metalv1alpha1.Aggregate) error {
+func (r *AggregateReconciler) finalize(ctx context.Context, aggregate metalv1alpha1.Aggregate) error {
 	inventories := &metalv1alpha1.InventoryList{}
 	if err := r.List(ctx, inventories); err != nil {
 		log.Error(ctx, fmt.Errorf("failed to list inventories: %w", err))
@@ -115,7 +115,7 @@ func (r *AggregateReconciler) finalize(ctx context.Context, aggregate *metalv1al
 
 	aggregateApply := metalv1alpha1apply.Aggregate(aggregate.Name, aggregate.Namespace).
 		WithFinalizers()
-	return r.Patch(ctx, aggregate, ssa.Apply(aggregateApply), client.FieldOwner(AggregateFieldOwner), client.ForceOwnership)
+	return r.Patch(ctx, &aggregate, ssa.Apply(aggregateApply), client.FieldOwner(AggregateFieldOwner), client.ForceOwnership)
 }
 
 func (r *AggregateReconciler) SetupWithManager(mgr ctrl.Manager) error {
