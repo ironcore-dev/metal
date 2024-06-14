@@ -14,6 +14,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories/finalizers,verbs=update
+
 func NewInventoryReconciler() (*InventoryReconciler, error) {
 	return &InventoryReconciler{}, nil
 }
