@@ -69,14 +69,6 @@ const (
 	MachineSpecOOBRefName = ".spec.oobRef.Name"
 )
 
-var nonInitialStates = []metalv1alpha1.MachineState{
-	metalv1alpha1.MachineStateMaintenance,
-	metalv1alpha1.MachineStateAvailable,
-	metalv1alpha1.MachineStateReserved,
-	metalv1alpha1.MachineStateTainted,
-	metalv1alpha1.MachineStateError,
-}
-
 func NewMachineReconciler() (*MachineReconciler, error) {
 	return &MachineReconciler{}, nil
 }
@@ -121,7 +113,8 @@ func (r *MachineReconciler) reconcile(
 	switch {
 	case machine.Spec.Maintenance:
 		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateMaintenance)
-	case machine.Spec.InventoryRef == nil && !slices.Contains(nonInitialStates, machine.Status.State):
+	case machine.Spec.InventoryRef == nil && machine.Status.State == metalv1alpha1.MachineStateInitial &&
+		conditionTrue(machine.Status.Conditions, MachineInitializedConditionType):
 		if machine.Spec.Power != metalv1alpha1.PowerOn {
 			return machineApply.WithSpec(metalv1alpha1apply.MachineSpec().WithPower(metalv1alpha1.PowerOn))
 		}
@@ -183,7 +176,7 @@ func (r *MachineReconciler) initialize(
 			WithReason(MachineInitializedConditionNegReason).
 			WithMessage(fmt.Sprintf("Cannot get OOB object: %v", err))
 		statusTransition = *baseCondition.Status == metav1.ConditionTrue
-	case oob.Status.Manufacturer != "" && oob.Status.SerialNumber != "":
+	case conditionTrue(oob.Status.Conditions, metalv1alpha1.OOBConditionTypeReady):
 		condition = condition.
 			WithStatus(metav1.ConditionTrue).
 			WithReason(MachineInitializedConditionPosReason).
@@ -575,7 +568,36 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			}
 			return requests
 		})).
+		Watches(&metalv1alpha1.OOB{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
+			requests := make([]reconcile.Request, 0)
+			source, ok := object.(*metalv1alpha1.OOB)
+			if !ok {
+				return requests
+			}
+			machineList := &metalv1alpha1.MachineList{}
+			if err := r.List(ctx, machineList); err != nil {
+				log.Error(ctx, err, "failed to list machines")
+				return requests
+			}
+			for _, machine := range machineList.Items {
+				if machine.Spec.OOBRef.Name == source.Name {
+					requests = append(requests, reconcile.Request{
+						NamespacedName: types.NamespacedName{
+							Name: machine.GetName(),
+						}})
+					break
+				}
+			}
+			return requests
+		})).
 		Complete(r)
+}
+
+func conditionTrue(conditions []metav1.Condition, typ string) bool {
+	idx := slices.IndexFunc(conditions, func(c metav1.Condition) bool {
+		return c.Type == typ && c.Status == metav1.ConditionTrue
+	})
+	return idx >= 0
 }
 
 func convertMacAddress(src string) string {
