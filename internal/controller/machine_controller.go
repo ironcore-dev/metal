@@ -390,17 +390,20 @@ func (r *MachineReconciler) evaluateAvailability(
 	machine *metalv1alpha1.Machine,
 	machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration,
 ) {
-	idx := slices.IndexFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
-		return *c.Type == MachineReadyConditionType
-	})
-	if *machineStatusApply.Conditions[idx].Status == metav1.ConditionFalse {
+	if !slices.ContainsFunc(machineStatusApply.Conditions, func(c v1.ConditionApplyConfiguration) bool {
+		return *c.Type == MachineReadyConditionType && *c.Status == metav1.ConditionTrue
+	}) {
 		return
 	}
 
 	if machine.Spec.MachineClaimRef != nil && machine.Spec.MachineClaimRef.Name != "" {
 		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateReserved)
-	} else {
+		return
+	}
+	if machine.Status.Power == metalv1alpha1.PowerOff {
 		machineStatusApply.State = ptr.To(metalv1alpha1.MachineStateAvailable)
+	} else {
+		machineStatusApply.State = ptr.To(machine.Status.State)
 	}
 }
 
