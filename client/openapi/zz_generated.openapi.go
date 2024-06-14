@@ -849,7 +849,7 @@ func schema_ironcore_dev_metal_api_v1alpha1_ConstraintSpec(ref common.ReferenceC
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ConstraintSpec contains conditions of contraint that should be applied on resource.",
+				Description: "ConstraintSpec contains conditions of constraint that should be applied on resource.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"path": {
