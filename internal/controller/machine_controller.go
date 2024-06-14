@@ -107,26 +107,30 @@ func (r *MachineReconciler) reconcile(
 	ctx context.Context,
 	machine *metalv1alpha1.Machine,
 ) *metalv1alpha1apply.MachineApplyConfiguration {
+	var machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration
 	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
-	machineStatusApply := metalv1alpha1apply.MachineStatus()
-	r.fillConditions(machine, machineStatusApply)
+
 	switch {
 	case machine.Spec.Maintenance:
-		machineStatusApply = machineStatusApply.WithState(metalv1alpha1.MachineStateMaintenance)
+		machineStatusApply = metalv1alpha1apply.MachineStatus().WithState(metalv1alpha1.MachineStateMaintenance)
+		r.fillConditions(machine, machineStatusApply)
 	case machine.Spec.InventoryRef == nil && machine.Status.State == metalv1alpha1.MachineStateInitial &&
 		conditionTrue(machine.Status.Conditions, MachineInitializedConditionType):
 		if machine.Spec.Power != metalv1alpha1.PowerOn {
 			return machineApply.WithSpec(metalv1alpha1apply.MachineSpec().WithPower(metalv1alpha1.PowerOn))
 		}
 	default:
+		machineStatusApply = metalv1alpha1apply.MachineStatus()
+		r.fillConditions(machine, machineStatusApply)
 		r.evaluateConditions(ctx, machine, machineStatusApply)
 		r.evaluateCleanupRequired(machine, machineStatusApply)
 		r.evaluateReadiness(machine, machineStatusApply)
 		r.evaluateAvailability(machine, machineStatusApply)
+		r.evaluateErrorState(machine, machineStatusApply)
 	}
-
-	r.evaluateErrorState(machine, machineStatusApply)
-	machineApply = machineApply.WithStatus(machineStatusApply)
+	if machineStatusApply != nil {
+		machineApply = machineApply.WithStatus(machineStatusApply)
+	}
 	return machineApply
 }
 
