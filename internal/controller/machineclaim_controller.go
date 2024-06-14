@@ -120,7 +120,7 @@ func (r *MachineClaimReconciler) finalizeMachine(ctx context.Context, claim *met
 		return fmt.Errorf("cannot extract Machine: %w", err)
 	}
 	machineApply.Finalizers = util.Clear(machineApply.Finalizers, MachineClaimFinalizer)
-	machineApply.Spec = nil
+	machineApply.Spec = metalv1alpha1apply.MachineSpec().WithCleanupRequired(true)
 	err = r.Patch(ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineClaimFieldManager), client.ForceOwnership)
 	if err != nil {
 		return fmt.Errorf("cannot apply Machine: %w", err)

@@ -47,6 +47,7 @@ type params struct {
 	kubeconfig                   string
 	systemNamespace              string
 	enableAggregateController    bool
+	enableCleanupController      bool
 	enableInventoryController    bool
 	enableMachineController      bool
 	enableMachineClaimController bool
@@ -73,8 +74,9 @@ func parseCmdLine() params {
 	pflag.Bool("enable-http2", false, "Enable HTTP2 for the metrics and webhook servers.")
 	pflag.String("kubeconfig", "", "Use a kubeconfig to run out of cluster.")
 	pflag.String("system-namespace", "", "Use a specific namespace for controller state. If blank, use the in-cluster namespace. Required if running out of cluster.")
-	pflag.Bool("enable-aggregate-controller", true, "Enable the Aggregate controllers.")
-	pflag.Bool("enable-inventory-controller", true, "Enable the Inventory controller")
+	pflag.Bool("enable-aggregate-controller", true, "Enable the Aggregate controller.")
+	pflag.Bool("enable-cleanup-controller", true, "Enable the Cleanup controller.")
+	pflag.Bool("enable-inventory-controller", true, "Enable the Inventory controller.")
 	pflag.Bool("enable-machine-controller", true, "Enable the Machine controller.")
 	pflag.Bool("enable-machineclaim-controller", true, "Enable the MachineClaim controller.")
 	pflag.Bool("enable-oob-controller", true, "Enable the OOB controller.")
@@ -112,6 +114,7 @@ func parseCmdLine() params {
 		kubeconfig:                   viper.GetString("kubeconfig"),
 		systemNamespace:              viper.GetString("system-namespace"),
 		enableAggregateController:    viper.GetBool("enable-aggregate-controller"),
+		enableCleanupController:      viper.GetBool("enable-cleanup-controller"),
 		enableInventoryController:    viper.GetBool("enable-inventory-controller"),
 		enableMachineController:      viper.GetBool("enable-machine-controller"),
 		enableMachineClaimController: viper.GetBool("enable-machineclaim-controller"),
@@ -273,6 +276,23 @@ func main() {
 		err = inventoryReconciler.SetupWithManager(mgr)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
+			exitCode = 1
+			return
+		}
+	}
+
+	if p.enableCleanupController {
+		var cleanupReconciler *controller.CleanupReconciler
+		cleanupReconciler, err = controller.NewCleanupReconciler()
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Cleanup")
+			exitCode = 1
+			return
+		}
+
+		err = cleanupReconciler.SetupWithManager(mgr)
+		if err != nil {
+			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Cleanup")
 			exitCode = 1
 			return
 		}
