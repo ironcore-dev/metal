@@ -44,7 +44,8 @@ func (r *CleanupReconciler) Reconcile(ctx context.Context, req reconcile.Request
 	// todo: cleanup logic
 	time.Sleep(time.Second * 15)
 	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
-	machineApply = machineApply.WithSpec(metalv1alpha1apply.MachineSpec().WithCleanupRequired(false))
+	machineApply = machineApply.WithSpec(
+		metalv1alpha1apply.MachineSpec().WithCleanupRequired(false).WithPower(metalv1alpha1.PowerOff))
 	return ctrl.Result{}, r.Patch(
 		ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(CleanupFieldManager), client.ForceOwnership)
 }
