@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2024 SAP SE or an SAP affiliate company and IronCore contributors
+// SPDX-License-Identifier: Apache-2.0
+
 package controller
 
 import (
@@ -68,13 +71,13 @@ func (r *InventoryReconciler) reconcile(ctx context.Context, inventory metalv1al
 			WithPower(metalv1alpha1.PowerOff).
 			WithInventoryRef(v1.LocalObjectReference{Name: inventory.Name})
 		machineApply = machineApply.WithSpec(machineSpecApply)
-		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)
 	} else {
 		machineSpecApply := metalv1alpha1apply.MachineSpec().
 			WithPower(machine.Spec.Power).
 			WithInventoryRef(v1.LocalObjectReference{Name: inventory.Name})
 		machineApply = machineApply.WithSpec(machineSpecApply)
-		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)
 	}
 }
 

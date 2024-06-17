@@ -31,7 +31,7 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories/status,verbs=get
 
 const (
-	MachineFieldOwner      string = "metal.ironcore.dev/machine"
+	MachineFieldManager    string = "metal.ironcore.dev/machine"
 	MachineFinalizer       string = "machine.metal.ironcore.dev/finalizer"
 	MachineErrorAnnotation string = "metal.ironcore.dev/error"
 	MachineSizeLabelPrefix string = "metal.ironcore.dev/size-"
@@ -93,12 +93,12 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if machineApply.Spec != nil {
 		machineApply.Status = nil
 		return ctrl.Result{}, r.Patch(
-			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)
 	}
 	if machineApply.Status != nil {
 		machineApply.Spec = nil
 		return ctrl.Result{}, r.Status().Patch(
-			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldOwner), client.ForceOwnership)
+			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)
 	}
 	return ctrl.Result{}, nil
 }
