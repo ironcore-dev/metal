@@ -17,6 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const InventoryFieldManager = "metal.ironcore.dev/inventory-controller"
+
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories/finalizers,verbs=update
@@ -71,13 +73,15 @@ func (r *InventoryReconciler) reconcile(ctx context.Context, inventory metalv1al
 			WithPower(metalv1alpha1.PowerOff).
 			WithInventoryRef(v1.LocalObjectReference{Name: inventory.Name})
 		machineApply = machineApply.WithSpec(machineSpecApply)
-		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)
+		return r.Patch(
+			ctx, machine, ssa.Apply(machineApply), client.FieldOwner(InventoryFieldManager), client.ForceOwnership)
 	} else {
 		machineSpecApply := metalv1alpha1apply.MachineSpec().
 			WithPower(machine.Spec.Power).
 			WithInventoryRef(v1.LocalObjectReference{Name: inventory.Name})
 		machineApply = machineApply.WithSpec(machineSpecApply)
-		return r.Patch(ctx, machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)
+		return r.Patch(
+			ctx, machine, ssa.Apply(machineApply), client.FieldOwner(InventoryFieldManager), client.ForceOwnership)
 	}
 }
 
