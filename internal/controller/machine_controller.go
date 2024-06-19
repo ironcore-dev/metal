@@ -550,31 +550,8 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.Machine{}).
-		Watches(&metalv1alpha1.Inventory{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
-			requests := make([]reconcile.Request, 0)
-			source, ok := object.(*metalv1alpha1.Inventory)
-			if !ok {
-				return requests
-			}
-			machineList := &metalv1alpha1.MachineList{}
-			if err := r.List(ctx, machineList); err != nil {
-				log.Error(ctx, err, "failed to list machines")
-				return requests
-			}
-			for _, machine := range machineList.Items {
-				if machine.Spec.InventoryRef == nil {
-					continue
-				}
-				if machine.Spec.InventoryRef.Name == source.Name {
-					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name: machine.GetName(),
-						}})
-					break
-				}
-			}
-			return requests
-		})).
+		Watches(&metalv1alpha1.Inventory{}, handler.EnqueueRequestForOwner(
+			mgr.GetScheme(), mgr.GetRESTMapper(), &metalv1alpha1.Machine{}, handler.OnlyControllerOwner())).
 		Watches(&metalv1alpha1.OOB{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
 			requests := make([]reconcile.Request, 0)
 			source, ok := object.(*metalv1alpha1.OOB)
