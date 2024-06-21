@@ -25,6 +25,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/ironcore-dev/metal/api/v1alpha1.AggregateStatus":              schema_ironcore_dev_metal_api_v1alpha1_AggregateStatus(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.AggregationResults":           schema_ironcore_dev_metal_api_v1alpha1_AggregationResults(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.BlockSpec":                    schema_ironcore_dev_metal_api_v1alpha1_BlockSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.BootConfiguration":            schema_ironcore_dev_metal_api_v1alpha1_BootConfiguration(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.BootConfigurationList":        schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationList(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.BootConfigurationSpec":        schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationSpec(ref),
+		"github.com/ironcore-dev/metal/api/v1alpha1.BootConfigurationStatus":      schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationStatus(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.CPUSpec":                      schema_ironcore_dev_metal_api_v1alpha1_CPUSpec(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.ConsoleProtocol":              schema_ironcore_dev_metal_api_v1alpha1_ConsoleProtocol(ref),
 		"github.com/ironcore-dev/metal/api/v1alpha1.ConstraintSpec":               schema_ironcore_dev_metal_api_v1alpha1_ConstraintSpec(ref),
@@ -598,6 +602,154 @@ func schema_ironcore_dev_metal_api_v1alpha1_BlockSpec(ref common.ReferenceCallba
 		},
 		Dependencies: []string{
 			"github.com/ironcore-dev/metal/api/v1alpha1.PartitionTableSpec"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_BootConfiguration(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BootConfiguration is the Schema for the bootconfigurations API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.BootConfigurationSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.BootConfigurationStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.BootConfigurationSpec", "github.com/ironcore-dev/metal/api/v1alpha1.BootConfigurationStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BootConfigurationList contains a list of BootConfiguration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/ironcore-dev/metal/api/v1alpha1.BootConfiguration"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/ironcore-dev/metal/api/v1alpha1.BootConfiguration", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BootConfigurationSpec defines the desired state of BootConfiguration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"machineRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
+						},
+					},
+					"ignitionSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
+						},
+					},
+					"image": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"machineRef", "ignitionSecretRef", "image"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BootConfigurationStatus defines the observed state of BootConfiguration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

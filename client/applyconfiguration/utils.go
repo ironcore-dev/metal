@@ -24,6 +24,12 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &apiv1alpha1.AggregateSpecApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("BlockSpec"):
 		return &apiv1alpha1.BlockSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("BootConfiguration"):
+		return &apiv1alpha1.BootConfigurationApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("BootConfigurationSpec"):
+		return &apiv1alpha1.BootConfigurationSpecApplyConfiguration{}
+	case v1alpha1.SchemeGroupVersion.WithKind("BootConfigurationStatus"):
+		return &apiv1alpha1.BootConfigurationStatusApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConsoleProtocol"):
 		return &apiv1alpha1.ConsoleProtocolApplyConfiguration{}
 	case v1alpha1.SchemeGroupVersion.WithKind("ConstraintSpec"):
