@@ -1,0 +1,10 @@
+apiVersion: metal.ironcore.dev/v1alpha1
+kind: MachineClaim
+metadata:
+  name: myclaim
+spec:
+  machineSelector:
+    matchLabels:
+      metal.ironcore.dev/size-m3metal: "true"
+  image: ""
+  power: "On"

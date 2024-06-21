@@ -1,0 +1,9 @@
+apiVersion: metal.ironcore.dev/v1alpha1
+kind: Size
+metadata:
+  name: m3metal
+  namespace: oob
+spec:
+  constraints:
+    - path: spec.memory.total
+      eq: 8
