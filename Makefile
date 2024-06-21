@@ -29,8 +29,8 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 
 .PHONY: generate
 generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	@internal/tools/generate.sh
 	@go run sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=".reuse/boilerplate.go.txt" paths="./..."
+	@internal/tools/generate.sh
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.

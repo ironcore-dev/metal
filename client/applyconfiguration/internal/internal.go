@@ -117,6 +117,46 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: type
       type:
         scalar: string
+- name: com.github.ironcore-dev.metal.api.v1alpha1.BootConfiguration
+  map:
+    fields:
+    - name: apiVersion
+      type:
+        scalar: string
+    - name: kind
+      type:
+        scalar: string
+    - name: metadata
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta
+      default: {}
+    - name: spec
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.BootConfigurationSpec
+      default: {}
+    - name: status
+      type:
+        namedType: com.github.ironcore-dev.metal.api.v1alpha1.BootConfigurationStatus
+      default: {}
+- name: com.github.ironcore-dev.metal.api.v1alpha1.BootConfigurationSpec
+  map:
+    fields:
+    - name: ignitionSecretRef
+      type:
+        namedType: io.k8s.api.core.v1.LocalObjectReference
+    - name: image
+      type:
+        scalar: string
+      default: ""
+    - name: machineRef
+      type:
+        namedType: io.k8s.api.core.v1.LocalObjectReference
+- name: com.github.ironcore-dev.metal.api.v1alpha1.BootConfigurationStatus
+  map:
+    fields:
+    - name: state
+      type:
+        scalar: string
 - name: com.github.ironcore-dev.metal.api.v1alpha1.CPUSpec
   map:
     fields:
