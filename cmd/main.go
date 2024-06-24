@@ -59,6 +59,8 @@ type params struct {
 	oobShutdownTimeout           time.Duration
 	oobUsernamePrefix            string
 	oobTemporaryPasswordSecret   string
+	machineInventoryBootImage    string
+	bootConfigurationNamespace   string
 }
 
 func parseCmdLine() params {
@@ -87,6 +89,8 @@ func parseCmdLine() params {
 	pflag.Duration("oob-shutdown-timeout", 7*time.Minute, "Wait this long before issuing an immediate shutdown, if graceful shutdown has not succeeded.")
 	pflag.String("oob-username-prefix", "metal-", "OOB: Use a prefix when creating BMC users. Cannot be empty.")
 	pflag.String("oob-temporary-password-secret", "bmc-temporary-password", "OOB: Secret to store a temporary password in. Will be generated if it does not exist.")
+	pflag.String("machine-inventory-boot-image", "ghcr.io/gardenlinux/gardenlinux:latest", "Machine: boot image to run inventory.")
+	pflag.String("boot-configuration-namespace", "default", "Boot configuration namespace.")
 
 	var help bool
 	pflag.BoolVarP(&help, "help", "h", false, "Show this help message.")
@@ -126,6 +130,8 @@ func parseCmdLine() params {
 		oobShutdownTimeout:           viper.GetDuration("oob-shutdown-timeout"),
 		oobUsernamePrefix:            viper.GetString("oob-username-prefix"),
 		oobTemporaryPasswordSecret:   viper.GetString("oob-temporary-password-secret"),
+		machineInventoryBootImage:    viper.GetString("machine-inventory-boot-image"),
+		bootConfigurationNamespace:   viper.GetString("boot-configuration-namespace"),
 	}
 }
 
@@ -300,7 +306,7 @@ func main() {
 
 	if p.enableMachineController {
 		var machineReconciler *controller.MachineReconciler
-		machineReconciler, err = controller.NewMachineReconciler()
+		machineReconciler, err = controller.NewMachineReconciler(p.machineInventoryBootImage, p.bootConfigurationNamespace)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Machine")
 			exitCode = 1

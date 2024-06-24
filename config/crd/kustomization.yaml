@@ -6,6 +6,7 @@ resources:
 - bases/metal.ironcore.dev_inventories.yaml
 - bases/metal.ironcore.dev_aggregates.yaml
 - bases/metal.ironcore.dev_sizes.yaml
+- bases/metal.ironcore.dev_bootconfigurations.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patches:
