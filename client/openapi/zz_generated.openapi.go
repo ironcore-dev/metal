@@ -1904,6 +1904,11 @@ func schema_ironcore_dev_metal_api_v1alpha1_MachineSpec(ref common.ReferenceCall
 							Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
 						},
 					},
+					"bootConfigurationRef": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
+						},
+					},
 					"asn": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},

@@ -13,16 +13,17 @@ import (
 // MachineSpecApplyConfiguration represents an declarative configuration of the MachineSpec type for use
 // with apply.
 type MachineSpecApplyConfiguration struct {
-	UUID               *string                  `json:"uuid,omitempty"`
-	OOBRef             *v1.LocalObjectReference `json:"oobRef,omitempty"`
-	InventoryRef       *v1.LocalObjectReference `json:"inventoryRef,omitempty"`
-	MachineClaimRef    *v1.ObjectReference      `json:"machineClaimRef,omitempty"`
-	LoopbackAddressRef *v1.LocalObjectReference `json:"loopbackAddressRef,omitempty"`
-	ASN                *string                  `json:"asn,omitempty"`
-	Power              *v1alpha1.Power          `json:"power,omitempty"`
-	LocatorLED         *v1alpha1.LED            `json:"locatorLED,omitempty"`
-	CleanupRequired    *bool                    `json:"cleanupRequired,omitempty"`
-	Maintenance        *bool                    `json:"maintenance,omitempty"`
+	UUID                 *string                  `json:"uuid,omitempty"`
+	OOBRef               *v1.LocalObjectReference `json:"oobRef,omitempty"`
+	InventoryRef         *v1.LocalObjectReference `json:"inventoryRef,omitempty"`
+	MachineClaimRef      *v1.ObjectReference      `json:"machineClaimRef,omitempty"`
+	LoopbackAddressRef   *v1.LocalObjectReference `json:"loopbackAddressRef,omitempty"`
+	BootConfigurationRef *v1.LocalObjectReference `json:"bootConfigurationRef,omitempty"`
+	ASN                  *string                  `json:"asn,omitempty"`
+	Power                *v1alpha1.Power          `json:"power,omitempty"`
+	LocatorLED           *v1alpha1.LED            `json:"locatorLED,omitempty"`
+	CleanupRequired      *bool                    `json:"cleanupRequired,omitempty"`
+	Maintenance          *bool                    `json:"maintenance,omitempty"`
 }
 
 // MachineSpecApplyConfiguration constructs an declarative configuration of the MachineSpec type for use with
@@ -68,6 +69,14 @@ func (b *MachineSpecApplyConfiguration) WithMachineClaimRef(value v1.ObjectRefer
 // If called multiple times, the LoopbackAddressRef field is set to the value of the last call.
 func (b *MachineSpecApplyConfiguration) WithLoopbackAddressRef(value v1.LocalObjectReference) *MachineSpecApplyConfiguration {
 	b.LoopbackAddressRef = &value
+	return b
+}
+
+// WithBootConfigurationRef sets the BootConfigurationRef field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the BootConfigurationRef field is set to the value of the last call.
+func (b *MachineSpecApplyConfiguration) WithBootConfigurationRef(value v1.LocalObjectReference) *MachineSpecApplyConfiguration {
+	b.BootConfigurationRef = &value
 	return b
 }
 

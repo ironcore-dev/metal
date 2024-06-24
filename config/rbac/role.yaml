@@ -60,6 +60,24 @@ rules:
 - apiGroups:
   - metal.ironcore.dev
   resources:
+  - bootconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
+  - bootconfigurations/status
+  verbs:
+  - get
+- apiGroups:
+  - metal.ironcore.dev
+  resources:
   - inventories
   verbs:
   - create

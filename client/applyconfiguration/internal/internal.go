@@ -578,6 +578,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: asn
       type:
         scalar: string
+    - name: bootConfigurationRef
+      type:
+        namedType: io.k8s.api.core.v1.LocalObjectReference
     - name: cleanupRequired
       type:
         scalar: boolean

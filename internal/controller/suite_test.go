@@ -38,7 +38,6 @@ const (
 	manufacturer   = "Sample"
 	serialNumber   = "1234"
 	inventoryImage = "fake"
-	bootOperatorNs = "boot-operator-system"
 )
 
 var (
@@ -130,7 +129,7 @@ var _ = BeforeSuite(func() {
 	Expect(inventoryReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	var machineReconciler *MachineReconciler
-	machineReconciler, err = NewMachineReconciler(inventoryImage, bootOperatorNs)
+	machineReconciler, err = NewMachineReconciler(inventoryImage)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(machineReconciler).NotTo(BeNil())
 	Expect(machineReconciler.SetupWithManager(mgr)).To(Succeed())

@@ -12,7 +12,7 @@ spec:
     listKind: BootConfigurationList
     plural: bootconfigurations
     singular: bootconfiguration
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.state
