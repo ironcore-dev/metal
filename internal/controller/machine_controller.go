@@ -73,12 +73,13 @@ const (
 	MachineSpecOOBRefName = ".spec.oobRef.Name"
 )
 
-func NewMachineReconciler(machineInventoryBootImage string) (*MachineReconciler, error) {
+func NewMachineReconciler(machineInventoryBootImage, systemNamespace string) (*MachineReconciler, error) {
 	if machineInventoryBootImage == "" {
 		return nil, fmt.Errorf("no machine inventory boot image provided")
 	}
 	return &MachineReconciler{
 		machineInventoryBootImage: machineInventoryBootImage,
+		systemNamespace:           systemNamespace,
 	}, nil
 }
 
@@ -87,6 +88,7 @@ type MachineReconciler struct {
 	client.Client
 
 	machineInventoryBootImage string
+	systemNamespace           string
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -609,7 +611,7 @@ func (r *MachineReconciler) createBootConfiguration(ctx context.Context, machine
 		},
 		Spec: metalv1alpha1.BootConfigurationSpec{
 			MachineRef:        &corev1.LocalObjectReference{Name: machine.Name},
-			IgnitionSecretRef: &corev1.LocalObjectReference{Name: machine.Name},
+			IgnitionSecretRef: &corev1.ObjectReference{Name: machine.Name, Namespace: r.systemNamespace},
 			Image:             r.machineInventoryBootImage,
 		},
 	}
@@ -629,7 +631,7 @@ func (r *MachineReconciler) createBootConfiguration(ctx context.Context, machine
 	bootConfigSpecApply := metalv1alpha1apply.BootConfigurationSpec().
 		WithImage(r.machineInventoryBootImage).
 		WithMachineRef(corev1.LocalObjectReference{Name: machine.Name}).
-		WithIgnitionSecretRef(corev1.LocalObjectReference{Name: machine.Name})
+		WithIgnitionSecretRef(corev1.ObjectReference{Name: machine.Name, Namespace: r.systemNamespace})
 	bootConfigApply = bootConfigApply.WithSpec(bootConfigSpecApply)
 	return r.Patch(
 		ctx, bootConfig, ssa.Apply(bootConfigApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)

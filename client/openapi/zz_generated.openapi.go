@@ -715,7 +715,7 @@ func schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationSpec(ref common.Ref
 					},
 					"ignitionSecretRef": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
+							Ref: ref("k8s.io/api/core/v1.ObjectReference"),
 						},
 					},
 					"image": {
@@ -730,7 +730,7 @@ func schema_ironcore_dev_metal_api_v1alpha1_BootConfigurationSpec(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.LocalObjectReference"},
+			"k8s.io/api/core/v1.LocalObjectReference", "k8s.io/api/core/v1.ObjectReference"},
 	}
 }
 

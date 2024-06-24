@@ -143,7 +143,7 @@ var schemaYAML = typed.YAMLObject(`types:
     fields:
     - name: ignitionSecretRef
       type:
-        namedType: io.k8s.api.core.v1.LocalObjectReference
+        namedType: io.k8s.api.core.v1.ObjectReference
     - name: image
       type:
         scalar: string

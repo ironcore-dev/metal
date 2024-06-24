@@ -13,7 +13,7 @@ import (
 // with apply.
 type BootConfigurationSpecApplyConfiguration struct {
 	MachineRef        *v1.LocalObjectReference `json:"machineRef,omitempty"`
-	IgnitionSecretRef *v1.LocalObjectReference `json:"ignitionSecretRef,omitempty"`
+	IgnitionSecretRef *v1.ObjectReference      `json:"ignitionSecretRef,omitempty"`
 	Image             *string                  `json:"image,omitempty"`
 }
 
@@ -34,7 +34,7 @@ func (b *BootConfigurationSpecApplyConfiguration) WithMachineRef(value v1.LocalO
 // WithIgnitionSecretRef sets the IgnitionSecretRef field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the IgnitionSecretRef field is set to the value of the last call.
-func (b *BootConfigurationSpecApplyConfiguration) WithIgnitionSecretRef(value v1.LocalObjectReference) *BootConfigurationSpecApplyConfiguration {
+func (b *BootConfigurationSpecApplyConfiguration) WithIgnitionSecretRef(value v1.ObjectReference) *BootConfigurationSpecApplyConfiguration {
 	b.IgnitionSecretRef = &value
 	return b
 }
