@@ -129,7 +129,7 @@ var _ = BeforeSuite(func() {
 	Expect(inventoryReconciler.SetupWithManager(mgr)).To(Succeed())
 
 	var machineReconciler *MachineReconciler
-	machineReconciler, err = NewMachineReconciler(inventoryImage)
+	machineReconciler, err = NewMachineReconciler(inventoryImage, ns.Name)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(machineReconciler).NotTo(BeNil())
 	Expect(machineReconciler.SetupWithManager(mgr)).To(Succeed())

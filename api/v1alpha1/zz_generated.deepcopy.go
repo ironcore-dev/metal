@@ -213,7 +213,7 @@ func (in *BootConfigurationSpec) DeepCopyInto(out *BootConfigurationSpec) {
 	}
 	if in.IgnitionSecretRef != nil {
 		in, out := &in.IgnitionSecretRef, &out.IgnitionSecretRef
-		*out = new(v1.LocalObjectReference)
+		*out = new(v1.ObjectReference)
 		**out = **in
 	}
 }

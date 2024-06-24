@@ -12,7 +12,7 @@ import (
 type BootConfigurationSpec struct {
 	MachineRef *v1.LocalObjectReference `json:"machineRef"`
 
-	IgnitionSecretRef *v1.LocalObjectReference `json:"ignitionSecretRef"`
+	IgnitionSecretRef *v1.ObjectReference `json:"ignitionSecretRef"`
 
 	Image string `json:"image"`
 }

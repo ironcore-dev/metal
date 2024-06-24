@@ -303,7 +303,7 @@ func main() {
 
 	if p.enableMachineController {
 		var machineReconciler *controller.MachineReconciler
-		machineReconciler, err = controller.NewMachineReconciler(p.machineInventoryBootImage)
+		machineReconciler, err = controller.NewMachineReconciler(p.machineInventoryBootImage, p.systemNamespace)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Machine")
 			exitCode = 1
