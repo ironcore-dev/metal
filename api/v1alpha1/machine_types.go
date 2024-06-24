@@ -32,6 +32,9 @@ type MachineSpec struct {
 	LoopbackAddressRef *v1.LocalObjectReference `json:"loopbackAddressRef,omitempty"`
 
 	// +optional
+	BootConfigurationRef *v1.LocalObjectReference `json:"bootConfigurationRef,omitempty"`
+
+	// +optional
 	ASN string `json:"asn,omitempty"`
 
 	// +kubebuilder:validation:Enum=On;Off

@@ -31,6 +31,8 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=machines/finalizers,verbs=update
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories,verbs=get;list;watch
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=inventories/status,verbs=get
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=bootconfigurations,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=metal.ironcore.dev,resources=bootconfigurations/status,verbs=get
 
 const (
 	MachineFieldManager    string = "metal.ironcore.dev/machine"
@@ -71,13 +73,12 @@ const (
 	MachineSpecOOBRefName = ".spec.oobRef.Name"
 )
 
-func NewMachineReconciler(machineInventoryBootImage, bootOperatorNamespace string) (*MachineReconciler, error) {
+func NewMachineReconciler(machineInventoryBootImage string) (*MachineReconciler, error) {
 	if machineInventoryBootImage == "" {
 		return nil, fmt.Errorf("no machine inventory boot image provided")
 	}
 	return &MachineReconciler{
-		machineInventoryBootImage:  machineInventoryBootImage,
-		bootConfigurationNamespace: bootOperatorNamespace,
+		machineInventoryBootImage: machineInventoryBootImage,
 	}, nil
 }
 
@@ -85,8 +86,7 @@ func NewMachineReconciler(machineInventoryBootImage, bootOperatorNamespace strin
 type MachineReconciler struct {
 	client.Client
 
-	machineInventoryBootImage  string
-	bootConfigurationNamespace string
+	machineInventoryBootImage string
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -100,7 +100,7 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	machineApply := r.reconcile(ctx, &machine)
+	machineApply, err := r.reconcile(ctx, &machine)
 	if machineApply.Spec != nil {
 		machineApply.Status = nil
 		return ctrl.Result{}, r.Patch(
@@ -111,13 +111,13 @@ func (r *MachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, r.Status().Patch(
 			ctx, &machine, ssa.Apply(machineApply), client.FieldOwner(MachineFieldManager), client.ForceOwnership)
 	}
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, err
 }
 
 func (r *MachineReconciler) reconcile(
 	ctx context.Context,
 	machine *metalv1alpha1.Machine,
-) *metalv1alpha1apply.MachineApplyConfiguration {
+) (*metalv1alpha1apply.MachineApplyConfiguration, error) {
 	var machineStatusApply *metalv1alpha1apply.MachineStatusApplyConfiguration
 	machineApply := metalv1alpha1apply.Machine(machine.Name, machine.Namespace)
 
@@ -127,12 +127,14 @@ func (r *MachineReconciler) reconcile(
 		r.fillConditions(machine, machineStatusApply)
 	case machine.Spec.InventoryRef == nil && machine.Status.State == metalv1alpha1.MachineStateInitial &&
 		conditionTrue(machine.Status.Conditions, MachineInitializedConditionType):
-		if machine.Spec.Power != metalv1alpha1.PowerOn {
-			if err := r.createBootConfiguration(ctx, machine); err != nil {
-				return machineApply
-			}
-			return machineApply.WithSpec(metalv1alpha1apply.MachineSpec().WithPower(metalv1alpha1.PowerOn))
+		machineSpecApply, err := r.evaluateInitialBoot(ctx, machine)
+		if err != nil {
+			return machineApply, err
 		}
+		if machineSpecApply == nil {
+			return machineApply, nil
+		}
+		return machineApply.WithSpec(machineSpecApply), nil
 	default:
 		machineStatusApply = metalv1alpha1apply.MachineStatus()
 		r.fillConditions(machine, machineStatusApply)
@@ -145,7 +147,42 @@ func (r *MachineReconciler) reconcile(
 	if machineStatusApply != nil {
 		machineApply = machineApply.WithStatus(machineStatusApply)
 	}
-	return machineApply
+	return machineApply, nil
+}
+
+func (r *MachineReconciler) evaluateInitialBoot(
+	ctx context.Context,
+	machine *metalv1alpha1.Machine,
+) (*metalv1alpha1apply.MachineSpecApplyConfiguration, error) {
+	if machine.Spec.Power == metalv1alpha1.PowerOn {
+		return nil, nil
+	}
+	if machine.Spec.BootConfigurationRef == nil || machine.Spec.BootConfigurationRef.Name == "" {
+		if err := r.createBootConfiguration(ctx, machine); err != nil {
+			log.Error(ctx, fmt.Errorf("failed to create boot configuration: %w", err))
+			return nil, err
+		}
+		machineSpecApply := metalv1alpha1apply.MachineSpec()
+		return machineSpecApply.
+			WithBootConfigurationRef(corev1.LocalObjectReference{Name: machine.Name}), nil
+	}
+
+	bootConfig := &metalv1alpha1.BootConfiguration{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Namespace: "",
+		Name:      machine.Spec.BootConfigurationRef.Name,
+	}, bootConfig); err != nil {
+		log.Error(ctx, fmt.Errorf("failed to get boot configuration: %w", err))
+		return nil, err
+	}
+	if bootConfig.Status.State != metalv1alpha1.BootConfigurationStateReady {
+		return nil, nil
+	}
+	log.Info(ctx, "Boot configuration is ready")
+	machineSpecApply := metalv1alpha1apply.MachineSpec()
+	return machineSpecApply.
+		WithPower(metalv1alpha1.PowerOn).
+		WithBootConfigurationRef(corev1.LocalObjectReference{Name: machine.Name}), nil
 }
 
 func (r *MachineReconciler) evaluateConditions(
@@ -568,8 +605,7 @@ func (r *MachineReconciler) createBootConfiguration(ctx context.Context, machine
 	log.Info(ctx, "Creating boot configuration")
 	bootConfig := &metalv1alpha1.BootConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      machine.Name,
-			Namespace: r.bootConfigurationNamespace,
+			Name: machine.Name,
 		},
 		Spec: metalv1alpha1.BootConfigurationSpec{
 			MachineRef:        &corev1.LocalObjectReference{Name: machine.Name},
@@ -588,7 +624,7 @@ func (r *MachineReconciler) createBootConfiguration(ctx context.Context, machine
 		WithUID(existing.UID).
 		WithController(*existing.Controller).
 		WithBlockOwnerDeletion(*existing.BlockOwnerDeletion)
-	bootConfigApply := metalv1alpha1apply.BootConfiguration(bootConfig.Name, bootConfig.Namespace).
+	bootConfigApply := metalv1alpha1apply.BootConfiguration(bootConfig.Name, "").
 		WithOwnerReferences(owner)
 	bootConfigSpecApply := metalv1alpha1apply.BootConfigurationSpec().
 		WithImage(r.machineInventoryBootImage).
@@ -603,8 +639,7 @@ func (r *MachineReconciler) deleteBootConfiguration(ctx context.Context, machine
 	log.Info(ctx, "Deleting boot configuration")
 	bootConfiguration := &metalv1alpha1.BootConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      machine.Name,
-			Namespace: r.bootConfigurationNamespace,
+			Name: machine.Name,
 		}}
 	return client.IgnoreNotFound(r.Delete(ctx, bootConfiguration))
 }
@@ -616,6 +651,8 @@ func (r *MachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&metalv1alpha1.Machine{}).
 		Watches(&metalv1alpha1.Inventory{}, handler.EnqueueRequestForOwner(
+			mgr.GetScheme(), mgr.GetRESTMapper(), &metalv1alpha1.Machine{}, handler.OnlyControllerOwner())).
+		Watches(&metalv1alpha1.BootConfiguration{}, handler.EnqueueRequestForOwner(
 			mgr.GetScheme(), mgr.GetRESTMapper(), &metalv1alpha1.Machine{}, handler.OnlyControllerOwner())).
 		Watches(&metalv1alpha1.OOB{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, object client.Object) []reconcile.Request {
 			requests := make([]reconcile.Request, 0)

@@ -77,7 +77,8 @@ func (r *InventoryReconciler) reconcile(ctx context.Context, inventory metalv1al
 	if machine.Spec.InventoryRef == nil {
 		machineSpecApply := metalv1alpha1apply.MachineSpec().
 			WithPower(metalv1alpha1.PowerOff).
-			WithInventoryRef(corev1.LocalObjectReference{Name: inventory.Name})
+			WithInventoryRef(corev1.LocalObjectReference{Name: inventory.Name}).
+			WithBootConfigurationRef(corev1.LocalObjectReference{})
 		machineApply = machineApply.WithSpec(machineSpecApply)
 		return r.Patch(
 			ctx, machine, ssa.Apply(machineApply), client.FieldOwner(InventoryFieldManager), client.ForceOwnership)
