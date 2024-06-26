@@ -123,7 +123,7 @@ var _ = BeforeSuite(func() {
 	Expect(CreateIndexes(ctx, mgr)).To(Succeed())
 
 	var inventoryReconciler *InventoryReconciler
-	inventoryReconciler, err = NewInventoryReconciler()
+	inventoryReconciler, err = NewInventoryReconciler(ns.Name)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(inventoryReconciler).NotTo(BeNil())
 	Expect(inventoryReconciler.SetupWithManager(mgr)).To(Succeed())

@@ -269,7 +269,7 @@ func main() {
 
 	if p.enableInventoryController {
 		var inventoryReconciler *controller.InventoryReconciler
-		inventoryReconciler, err = controller.NewInventoryReconciler()
+		inventoryReconciler, err = controller.NewInventoryReconciler(p.systemNamespace)
 		if err != nil {
 			log.Error(ctx, fmt.Errorf("cannot create controller: %w", err), "controller", "Inventory")
 			exitCode = 1
