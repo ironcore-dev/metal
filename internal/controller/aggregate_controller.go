@@ -24,8 +24,8 @@ import (
 // +kubebuilder:rbac:groups=metal.ironcore.dev,resources=aggregates/finalizers,verbs=update
 
 const (
-	AggregateFinalizer  = "aggregate.metal.ironcore.dev/finalizer"
-	AggregateFieldOwner = "metal.ironcore.dev/aggregate"
+	AggregateFinalizer    = "aggregate.metal.ironcore.dev/finalizer"
+	AggregateFieldManager = "metal.ironcore.dev/aggregate"
 )
 
 func NewAggregateReconciler() (*AggregateReconciler, error) {
@@ -56,7 +56,7 @@ func (r *AggregateReconciler) reconcile(ctx context.Context, aggregate *metalv1a
 		aggregateApply := metalv1alpha1apply.Aggregate(aggregate.Name, aggregate.Namespace).
 			WithFinalizers(AggregateFinalizer)
 		return r.Patch(
-			ctx, aggregate, ssa.Apply(aggregateApply), client.FieldOwner(AggregateFieldOwner), client.ForceOwnership)
+			ctx, aggregate, ssa.Apply(aggregateApply), client.FieldOwner(AggregateFieldManager), client.ForceOwnership)
 	}
 
 	inventories := &metalv1alpha1.InventoryList{}
@@ -85,7 +85,7 @@ func (r *AggregateReconciler) reconcile(ctx context.Context, aggregate *metalv1a
 			WithComputed(metalv1alpha1.AggregationResults{Object: aggregateResults})
 		inventoryApply = inventoryApply.WithStatus(inventoryStatusApply)
 		if err := r.Status().Patch(
-			ctx, &inventory, ssa.Apply(inventoryApply), client.FieldOwner(AggregateFieldOwner), client.ForceOwnership); err != nil {
+			ctx, &inventory, ssa.Apply(inventoryApply), client.FieldOwner(AggregateFieldManager), client.ForceOwnership); err != nil {
 			log.Error(ctx, fmt.Errorf("failed to patch inventory: %w", err), "inventory", inventory.Name)
 		}
 	}
@@ -112,14 +112,14 @@ func (r *AggregateReconciler) finalize(ctx context.Context, aggregate metalv1alp
 			WithComputed(metalv1alpha1.AggregationResults{Object: computed})
 		inventoryApply = inventoryApply.WithStatus(inventoryStatusApply)
 		if err := r.Status().Patch(
-			ctx, &inventory, ssa.Apply(inventoryApply), client.FieldOwner(AggregateFieldOwner), client.ForceOwnership); err != nil {
+			ctx, &inventory, ssa.Apply(inventoryApply), client.FieldOwner(AggregateFieldManager), client.ForceOwnership); err != nil {
 			log.Error(ctx, fmt.Errorf("failed to patch inventory: %w", err), "inventory", inventory.Name)
 		}
 	}
 
 	aggregateApply := metalv1alpha1apply.Aggregate(aggregate.Name, aggregate.Namespace).
 		WithFinalizers()
-	return r.Patch(ctx, &aggregate, ssa.Apply(aggregateApply), client.FieldOwner(AggregateFieldOwner), client.ForceOwnership)
+	return r.Patch(ctx, &aggregate, ssa.Apply(aggregateApply), client.FieldOwner(AggregateFieldManager), client.ForceOwnership)
 }
 
 func (r *AggregateReconciler) SetupWithManager(mgr ctrl.Manager) error {
