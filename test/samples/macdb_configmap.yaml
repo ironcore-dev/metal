@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: macdb
+  namespace: metal-system
+data:
+  macdb.yaml: |
+    macs:
+      - prefix: aabbcc
+        protocol:
+          name: Redfish
+        defaultCredentials:
+          - username: admin
+            password: admin
+        type: Machine

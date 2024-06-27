@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ipamv1alpha1 "github.com/ironcore-dev/ipam/api/ipam/v1alpha1"
+	"github.com/ironcore-dev/metal/internal/bmc"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,6 +61,7 @@ type params struct {
 	oobUsernamePrefix            string
 	oobTemporaryPasswordSecret   string
 	machineInventoryBootImage    string
+	testingMode                  bool
 }
 
 func parseCmdLine() params {
@@ -89,6 +91,7 @@ func parseCmdLine() params {
 	pflag.String("oob-username-prefix", "metal-", "OOB: Use a prefix when creating BMC users. Cannot be empty.")
 	pflag.String("oob-temporary-password-secret", "bmc-temporary-password", "OOB: Secret to store a temporary password in. Will be generated if it does not exist.")
 	pflag.String("machine-inventory-boot-image", "ghcr.io/gardenlinux/gardenlinux:latest", "Machine: boot image to run inventory.")
+	pflag.Bool("testing-mode", false, "Enable testing mode.")
 
 	var help bool
 	pflag.BoolVarP(&help, "help", "h", false, "Show this help message.")
@@ -129,6 +132,7 @@ func parseCmdLine() params {
 		oobUsernamePrefix:            viper.GetString("oob-username-prefix"),
 		oobTemporaryPasswordSecret:   viper.GetString("oob-temporary-password-secret"),
 		machineInventoryBootImage:    viper.GetString("machine-inventory-boot-image"),
+		testingMode:                  viper.GetBool("testing-mode"),
 	}
 }
 
@@ -158,6 +162,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(log.Setup(context.Background(), p.dev, false, os.Stderr), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGHUP)
 	defer stop()
 	log.Info(ctx, "Starting Metal")
+
+	if p.testingMode {
+		log.Info(ctx, "Running testing mode: fake bmc registered")
+		bmc.RegisterFake()
+	} else {
+		log.Info(ctx, "Running normal mode")
+	}
 
 	defer func() {
 		log.Info(ctx, "Exiting", "exitCode", exitCode)

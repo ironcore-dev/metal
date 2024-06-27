@@ -1,0 +1,7 @@
+apiVersion: ipam.metal.ironcore.dev/v1alpha1
+kind: IP
+metadata:
+  name: test-e2e-ip
+  namespace: oob
+  labels:
+    test: "e2e"

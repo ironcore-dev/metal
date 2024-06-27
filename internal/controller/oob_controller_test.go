@@ -4,12 +4,11 @@
 package controller
 
 import (
-	"crypto/rand"
 	"fmt"
-	"net/netip"
 	"time"
 
 	ipamv1alpha1 "github.com/ironcore-dev/ipam/api/ipam/v1alpha1"
+	"github.com/ironcore-dev/metal/test/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,9 +31,9 @@ var _ = PDescribe("OOB Controller", Serial, func() {
 
 	BeforeEach(func(ctx SpecContext) {
 		var err error
-		mac, err = generateMacAddress()
+		mac, err = utils.GenerateMacAddress(macPrefix)
 		Expect(err).NotTo(HaveOccurred())
-		ipAddr, err = generateIpAddress()
+		ipAddr, err = utils.GenerateIpAddress()
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(ObjectList(&ipamv1alpha1.IPList{}, &client.ListOptions{
@@ -910,32 +909,6 @@ var _ = PDescribe("OOB Controller", Serial, func() {
 		))
 	})
 })
-
-func generateMacAddress() (string, error) {
-	buf := make([]byte, 3)
-	_, err := rand.Read(buf)
-	if err != nil {
-		return "", fmt.Errorf("cannot generate MAC address: %w", err)
-	}
-	mac := fmt.Sprintf("%s%02x%02x%02x", macPrefix, buf[0], buf[1], buf[2])
-	return mac, nil
-}
-
-func generateIpAddress() (ipamv1alpha1.IPAddr, error) {
-	buf := make([]byte, 3)
-	_, err := rand.Read(buf)
-	if err != nil {
-		return ipamv1alpha1.IPAddr{}, fmt.Errorf("cannot generate IP address: %w", err)
-	}
-	var ip netip.Addr
-	ip, err = netip.ParseAddr(fmt.Sprintf("10.%d.%d.%d", buf[0], buf[1], buf[2]))
-	if err != nil {
-		return ipamv1alpha1.IPAddr{}, fmt.Errorf("cannot generate IP address: %w", err)
-	}
-	return ipamv1alpha1.IPAddr{
-		Net: ip,
-	}, nil
-}
 
 func readyReason(o client.Object) (string, error) {
 	oob, ok := o.(*metalv1alpha1.OOB)

@@ -1,0 +1,24 @@
+spec:
+  template:
+    spec:
+      containers:
+        - name: manager
+          volumeMounts:
+            - name: macdb
+              mountPath: /tmp/macdb
+          env:
+            - name: TESTING_MODE
+              value: "true"
+            - name: OOB_IP_LABEL_SELECTOR
+              value: test=e2e
+            - name: OOB_MAC_DB
+              value: /tmp/macdb/macdb.yaml
+            - name: SYSTEM_NAMESPACE
+              value: metal-system
+            - name: DEV
+              value: "1"
+          imagePullPolicy: IfNotPresent
+      volumes:
+        - name: macdb
+          configMap:
+            name: macdb
